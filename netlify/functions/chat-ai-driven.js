@@ -409,6 +409,75 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const countIntent = /몇|개수|얼마나|how many/.test(lowerMsg) || /몇|개수|얼마나|how many/.test((query || '').toLowerCase());
         // Detect collaborator intent (누구와 가장 많이 같이 썼는지 등)
         const collaboratorIntent = /(공저|공동연구|같이|함께|coauthor|collaborator|누구)/.test(lowerMsg);
+        // Detect list-all intent
+        const listIntent = /(모두|전체|전부|다)\s*(나열|적어|써|목록|리스트)|나열|목록|리스트/.test(lowerMsg);
+
+        // Try to extract a specific collaborator name from message
+        function extractCollaboratorNameFromMessage() {
+          // Build set of known collaborator names from dataset (excluding owner)
+          const names = new Set();
+          for (const p of PAPERS_DATABASE) {
+            const authors = Array.isArray(p.authors) ? p.authors : [];
+            for (const a of authors) {
+              const n = (a || '').trim();
+              if (!n) continue;
+              const ln = n.toLowerCase();
+              if (ln === 'sangdon park' || n === '박상돈') continue;
+              names.add(n);
+              names.add(ln);
+            }
+          }
+          const tokens = tokenize(message).concat(tokenize(query || ''));
+          for (let i = 0; i < tokens.length; i++) {
+            const t = tokens[i];
+            // Check raw token or capitalized + surname-first heuristic not implemented; compare lowercased names set
+            if (names.has(t) || names.has(t.toLowerCase())) {
+              // Find the original cased name if exists
+              for (const nm of names) {
+                if (nm.toLowerCase() === t.toLowerCase() && nm !== t.toLowerCase()) return nm;
+              }
+              return t;
+            }
+          }
+          return null;
+        }
+
+        // Helper: compute top collaborator and optionally list papers
+        function computeCollaboratorsAndList(targetName = null) {
+          const counts = new Map();
+          const ownerAliases = new Set(['박상돈', 'sangdon park']);
+          for (const p of PAPERS_DATABASE) {
+            const authors = Array.isArray(p.authors) ? p.authors : [];
+            if (authors.length === 0) continue;
+            const hasOwner = authors.some(a => ownerAliases.has((a || '').trim().toLowerCase()));
+            if (!hasOwner) continue;
+            const coauthors = authors
+              .map(a => (a || '').trim())
+              .filter(a => a && !ownerAliases.has(a.toLowerCase()));
+            for (const a of coauthors) counts.set(a, (counts.get(a) || 0) + 1);
+          }
+          let topName = null;
+          if (targetName) {
+            // normalize match to existing key
+            let matched = null;
+            for (const k of counts.keys()) {
+              if (k.toLowerCase().includes(targetName.toLowerCase())) { matched = k; break; }
+            }
+            topName = matched || targetName;
+          } else {
+            const sorted = Array.from(counts.entries()).sort((a,b)=>b[1]-a[1]);
+            topName = sorted.length ? sorted[0][0] : null;
+          }
+          // Build list of papers with that collaborator
+          let list = [];
+          if (topName) {
+            list = PAPERS_DATABASE.filter(p => {
+              const authors = Array.isArray(p.authors) ? p.authors.map(a => (a||'').trim().toLowerCase()) : [];
+              return authors.includes(topName.toLowerCase()) && authors.some(a => a === '박상돈' || a === 'sangdon park');
+            }).map(p => `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`);
+          }
+          return { topName, count: topName ? (counts.get(topName) || list.length) : 0, list };
+        }
         let deterministicReply = null;
         if (countIntent) {
           const effectiveQuery = (query && query.trim()) ? query : message;
@@ -420,26 +489,31 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
         } else if (collaboratorIntent) {
           // Tally collaborators from dataset authors
-          const counts = new Map();
-          for (const p of PAPERS_DATABASE) {
-            const authors = Array.isArray(p.authors) ? p.authors : [];
-            if (authors.length === 0) continue;
-            const hasOwner = authors.some(a => (a || '').includes('박상돈') || (a || '').toLowerCase().includes('sangdon park'));
-            if (!hasOwner) continue;
-            for (const a of authors) {
-              const name = (a || '').trim();
-              if (!name || name === '박상돈' || name.toLowerCase() === 'sangdon park') continue;
-              counts.set(name, (counts.get(name) || 0) + 1);
+          const specificName = extractCollaboratorNameFromMessage();
+          let { topName, count, list } = computeCollaboratorsAndList(specificName);
+          if (topName) {
+            if (listIntent) {
+              // Provide deterministic list
+              deterministicReply = `${topName}님과 함께한 논문은 총 ${list.length}편입니다. 아래 목록을 참고하세요.`;
+              searchResults = list;
+            } else {
+              deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${topName}님으로, ${count}편입니다.`;
+              // Also show top-3 collaborators as context
+              // Recompute counts for top-3 view
+              const temp = computeCollaboratorsAndList();
+              // temp.list is for topName; we need counts map again, so quickly tally
+              const tally = new Map();
+              for (const p of PAPERS_DATABASE) {
+                const authors = Array.isArray(p.authors) ? p.authors.map(a => (a||'').trim().toLowerCase()) : [];
+                if (!authors.includes('sangdon park') && !authors.includes('박상돈')) continue;
+                for (const a of authors) {
+                  if (a === 'sangdon park' || a === '박상돈') continue;
+                  tally.set(a, (tally.get(a) || 0) + 1);
+                }
+              }
+              const top3 = Array.from(tally.entries()).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=> `${n}: ${c}편`);
+              searchResults = top3;
             }
-          }
-          const sorted = Array.from(counts.entries()).sort((a,b) => b[1]-a[1]);
-          if (sorted.length > 0) {
-            const [topName, topCount] = sorted[0];
-            deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${topName}님으로, ${topCount}편입니다.`;
-            // Also enrich search results list with top 3 collaborators
-            const tops = sorted.slice(0, 3).map(([n,c]) => `${n}: ${c}편`);
-            if (!searchResults) searchResults = [];
-            searchResults = [...tops, ...(Array.isArray(searchResults) ? searchResults : [])];
           } else {
             // Fallback: use knowledge base collaborator stats if available
             const kbCollab = (KNOWLEDGE_BASE?.publications?.by_collaborator) || {};
@@ -447,14 +521,30 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             kbCounts.sort((a,b) => b[1]-a[1]);
             if (kbCounts.length > 0 && kbCounts[0][1] > 0) {
               const [kbTopName, kbTopCount] = kbCounts[0];
-              deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${kbTopName}님으로, 약 ${kbTopCount}편입니다.`;
+              if (listIntent) {
+                deterministicReply = `${kbTopName}님과 함께한 논문은 약 ${kbTopCount}편입니다.`;
+              } else {
+                deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${kbTopName}님으로, 약 ${kbTopCount}편입니다.`;
+              }
               const tops = kbCounts.slice(0, 3).map(([n,c]) => `${n}: ${c}편`);
-              if (!searchResults) searchResults = [];
-              searchResults = [...tops, ...(Array.isArray(searchResults) ? searchResults : [])];
+              searchResults = tops;
             } else {
               deterministicReply = '공동저자 정보를 확인할 수 없습니다.';
             }
           }
+        }
+
+        // If we have a deterministic reply (counts/collaborators), we can skip LLM for robustness
+        if (deterministicReply) {
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              step: 2,
+              reply: deterministicReply,
+              searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 50) : null
+            })
+          };
         }
 
         const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약을 바탕으로 사용자 질문에 답변하세요.
