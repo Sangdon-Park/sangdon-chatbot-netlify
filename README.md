@@ -16,4 +16,4 @@ Chatbot API for Sangdon Park's website using Netlify Functions and Google Gemini
 ```bash
 npm install
 netlify dev
-```
+```# Trigger rebuild 2025. 08. 23. (토) 17:34:36 KST
