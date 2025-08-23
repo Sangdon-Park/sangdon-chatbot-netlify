@@ -177,6 +177,28 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
   return scored.slice(0, maxResults).map(s => s.label);
 }
 
+// Filter papers by free-text query tokens
+function filterPapersByQuery(query, papers) {
+  if (!query || typeof query !== 'string') return [];
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9가-힣]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return [];
+
+  return papers.filter(p => {
+    const hay = [
+      p.title || '',
+      p.journal || '',
+      String(p.year || ''),
+      ...(p.authors || []),
+      ...(p.keywords || [])
+    ].join(' ').toLowerCase();
+    // Require at least one token match
+    return tokens.some(t => hay.includes(t));
+  });
+}
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -296,6 +318,20 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         // Generate final response with context
+        // If user asked for counts, compute deterministically from data (no hardcoding)
+        const lowerMsg = (message || '').toLowerCase();
+        const countIntent = /몇|개수|얼마나|how many/.test(lowerMsg) || /몇|개수|얼마나|how many/.test((query || '').toLowerCase());
+        let deterministicReply = null;
+        if (countIntent) {
+          const effectiveQuery = (query && query.trim()) ? query : message;
+          const matchedPapers = filterPapersByQuery(effectiveQuery || '', PAPERS_DATABASE);
+          deterministicReply = `해당 주제 관련 논문은 ${matchedPapers.length}편입니다.`;
+          // If we found nothing but intent exists, fall back to total count
+          if (matchedPapers.length === 0) {
+            deterministicReply = `전체 국제저널 기준으로 ${PAPERS_DATABASE.length}편입니다.`;
+          }
+        }
+
         const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약을 바탕으로 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
@@ -327,12 +363,12 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const finalData = await finalResponse.json();
         console.log('Final Response from Gemini:', finalData);
         
-        let reply = finalData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        let reply = deterministicReply || finalData?.candidates?.[0]?.content?.parts?.[0]?.text;
         
         // Fallback if no reply
         if (!reply) {
           console.error('No reply generated, using fallback');
-          reply = searchResults || '죄송합니다. 답변을 생성할 수 없습니다.';
+          reply = deterministicReply || (Array.isArray(searchResults) ? (searchResults[0] || '') : '') || '죄송합니다. 답변을 생성할 수 없습니다.';
         }
 
         // Log to Supabase
