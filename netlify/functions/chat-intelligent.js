@@ -124,25 +124,44 @@ function determineAction(message) {
   
   // Check for search intents
   if (lowerMessage.includes('논문') && (lowerMessage.includes('몇') || lowerMessage.includes('개수') || lowerMessage.includes('얼마나'))) {
+    const thinkingResponses = [
+      '잠시 제 논문 목록을 확인해보겠습니다.',
+      '정확한 개수를 세어보겠습니다.',
+      '아, 그건 제가 세어봐야 해서 잠시만요.',
+      '논문 리스트를 한번 살펴보겠습니다.'
+    ];
     return {
       action: 'count_publications',
-      thinking: '음, 정확히 세어보니...'
+      initialResponse: thinkingResponses[Math.floor(Math.random() * thinkingResponses.length)],
+      needsSecondStep: true
     };
   }
   
   if (lowerMessage.includes('엣지') || lowerMessage.includes('edge')) {
+    const thinkingResponses = [
+      '엣지 컴퓨팅 관련 연구들을 찾아보겠습니다.',
+      '제 연구 중에서 엣지 컴퓨팅 논문들을 확인해보겠습니다.',
+      '아, 엣지 컴퓨팅이요? 잠시 확인해보겠습니다.'
+    ];
     return {
       action: 'search',
       query: 'edge computing',
-      thinking: '제 연구 중에서 엣지 컴퓨팅 관련 내용을 찾아보니...'
+      initialResponse: thinkingResponses[Math.floor(Math.random() * thinkingResponses.length)],
+      needsSecondStep: true
     };
   }
   
   if (lowerMessage.includes('블로그') || lowerMessage.includes('글') || lowerMessage.includes('아티클')) {
+    const thinkingResponses = [
+      '제가 쓴 글들을 찾아보겠습니다.',
+      '블로그 글을 확인해보겠습니다.',
+      '아, 제 글들 말씀이시군요. 잠시만요.'
+    ];
     return {
       action: 'search',
       query: message,
-      thinking: '제 글을 다시 한번 읽어보니...'
+      initialResponse: thinkingResponses[Math.floor(Math.random() * thinkingResponses.length)],
+      needsSecondStep: true
     };
   }
   
@@ -150,20 +169,28 @@ function determineAction(message) {
     return {
       action: 'search',
       query: message,
-      thinking: '제가 진행한 프로젝트들을 살펴보니...'
+      initialResponse: '제가 진행한 프로젝트들을 확인해보겠습니다.',
+      needsSecondStep: true
     };
   }
   
   if (lowerMessage.includes('공동연구') || lowerMessage.includes('같이') || lowerMessage.includes('공저')) {
+    const thinkingResponses = [
+      '공저자 분들을 확인해보겠습니다.',
+      '제 논문 공동연구자들을 살펴보겠습니다.',
+      '아, 누구와 가장 많이 연구했는지 확인해보겠습니다.'
+    ];
     return {
       action: 'analyze_collaborators',
-      thinking: '제 논문 공저자들을 확인해보니...'
+      initialResponse: thinkingResponses[Math.floor(Math.random() * thinkingResponses.length)],
+      needsSecondStep: true
     };
   }
   
   return {
     action: 'chat',
-    thinking: null
+    initialResponse: null,
+    needsSecondStep: false
   };
 }
 
@@ -231,16 +258,18 @@ ${searchResults.map(r => `- [${r.type}] ${r.item.title || r.item.name}: ${r.item
 `;
       }
 
-      // Generate prompt with context
+      // Generate prompt with context  
       const prompt = `당신은 박상돈(Sangdon Park) 본인입니다. 실제 사람처럼 자연스럽게 대화하세요.
 
 ## 답변 규칙
 - 자연스럽고 정중한 존댓말로 응답
 - **짧고 간결하게** 답변 (1-2문장 기본)
-- 검색이나 분석을 했다면 그 과정을 자연스럽게 언급
+- 이미 검색/분석을 완료했다고 가정하고 결과만 답변
+- "세어보니", "찾아보니" 같은 과거형 사용하지 말고 바로 결과 제시
 ${additionalContext}
 
-질문: ${message}`;
+질문: ${message}
+답변:`;
 
       // Call Gemini API
       const response = await fetch(
@@ -284,7 +313,8 @@ ${additionalContext}
       const responseData = {
         reply,
         action: actionInfo.action,
-        thinking: actionInfo.thinking,
+        initialResponse: actionInfo.initialResponse,
+        needsSecondStep: actionInfo.needsSecondStep,
         searchResults: searchResults.length > 0 ? searchResults.slice(0, 3) : null,
         metadata: {
           hasSearch: actionInfo.action === 'search',
