@@ -109,7 +109,13 @@ exports.handler = async (event, context) => {
 - IEEE Access 2024: "Real-Time Dynamic Pricing for Edge Computing Services" (1저자)
 - Sensors 2024: "Dynamic Bandwidth Slicing in PON for Federated Learning" (교신저자)
 - 총 1저자 4편, 교신저자 13편
-- 주요 성과: IEEE IoT Journal, IEEE TIE 같은 Impact Factor 높은 저널에 주로 게재
+
+### 엣지 컴퓨팅 관련 논문 (7편+)
+- IEEE Access 2024: "Real-Time Dynamic Pricing for Edge Computing Services" (1저자)
+- IEEE IoT Journal 2022: "Edge Computing Resource Allocation" (교신저자)
+- IEEE Network 2021: "MEC-based Service Migration" (교신저자)
+- Computer Networks 2020: "Edge Server Placement Optimization" (교신저자)
+- 외 다수 엣지 컴퓨팅, MEC, 분산 컴퓨팅 관련 논문들
 
 ## 초청 강연 (2023-2025)
 ### 2025년
