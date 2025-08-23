@@ -265,10 +265,15 @@ ${searchResults}
 
 중요: JSON 데이터를 그대로 보여주지 마세요! 데이터를 분석해서 자연스러운 한국어로 답변하세요.
 
-예시 답변:
-- "가장 많이 함께 논문 쓴 분?" → "최준균 교수님과 10편, 이주형 교수님과 9편 함께 썼습니다."
-- "황강욱 교수님과 쓴 논문?" → "황강욱 교수님과는 에너지 트레이딩과 인지 무선 네트워크 관련 논문 4편을 함께 썼습니다."
-- "serena mcp 설치법?" → "Serena MCP 설치 가이드를 작성한 포스트가 있습니다."
+답변 방법:
+1. papers 배열에서 authors 필드를 분석해 공동저자 찾기
+2. 각 저자가 몇 편에 등장하는지 세기 (박상돈 제외)
+3. posts 배열에서 title/keywords로 관련 글 찾기
+
+예시:
+- "가장 많이 논문 쓴 사람?" → papers의 authors를 분석해서 최다 공동저자 찾기
+- "황강욱과 쓴 논문?" → authors에 "황강욱" 포함된 논문들 찾기
+- "serena 설치법?" → posts에서 title에 "Serena" 포함된 글 찾기
 
 답변 규칙:
 - JSON 데이터를 분석해서 답변 (절대 raw JSON 보여주지 말 것)
@@ -287,7 +292,7 @@ ${searchResults}
               }],
               generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 300
+                maxOutputTokens: 500
               }
             })
           }
