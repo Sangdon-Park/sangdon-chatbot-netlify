@@ -69,9 +69,9 @@ exports.handler = async (event, context) => {
       
       질문: ${message}`;
 
-      // Call Gemini API
+      // Call Gemini API (Gemini 2.5 Flash)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: {
