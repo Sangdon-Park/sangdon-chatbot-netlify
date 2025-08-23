@@ -63,22 +63,27 @@ exports.handler = async (event, context) => {
 
       // STEP 1: AI decides what action to take
       if (step === 1) {
-        const actionPrompt = `당신은 박상돈의 AI 비서입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
+        const actionPrompt = `당신은 박상돈 본인입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
 
 사용 가능한 행동:
-1. "SEARCH_PAPERS": 논문 검색이 필요할 때
-2. "COUNT_PAPERS": 논문 개수를 세야 할 때  
-3. "ANALYZE_COLLABORATORS": 공동연구자 분석이 필요할 때
-4. "SEARCH_ARTICLES": 블로그/아티클 검색이 필요할 때
-5. "SEARCH_PROJECTS": 프로젝트 검색이 필요할 때
-6. "CHAT": 일반 대화 (인사, 안부, 일상 대화 등)
+- SEARCH_PAPERS: 논문 관련 질문 (논문 찾기, 특정 주제 논문)
+- COUNT_PAPERS: 논문 개수 질문 (몇 편, 얼마나)
+- ANALYZE_COLLABORATORS: 공동연구자 질문 (누구와, 같이)
+- SEARCH_ARTICLES: 블로그/글 관련
+- SEARCH_PROJECTS: 프로젝트 관련
+- CHAT: 인사, 일반 대화, 위에 해당 안 되는 것
 
-다음 형식으로만 응답하세요:
+예시:
+Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH_PAPERS, QUERY: AI
+Q: "논문 몇 편?" → ACTION: COUNT_PAPERS
+Q: "안녕하세요" → ACTION: CHAT
+
+반드시 이 형식으로 응답:
 ACTION: [행동명]
-QUERY: [검색어 또는 분석 대상]
-INITIAL_MESSAGE: [사용자에게 보낼 메시지 - CHAT인 경우 완전한 답변, 다른 경우 "확인해보겠습니다" 류의 메시지]
+QUERY: [검색어]
+INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아니면 "확인해보겠습니다" 류]
 
-사용자 질문: ${message}`;
+사용자: ${message}`;
 
         const actionResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -98,16 +103,20 @@ INITIAL_MESSAGE: [사용자에게 보낼 메시지 - CHAT인 경우 완전한 �
         );
 
         const actionData = await actionResponse.json();
+        console.log('AI Decision Response:', actionData);
         const actionText = actionData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        console.log('AI Decision Text:', actionText);
         
         // Parse AI decision
-        const actionMatch = actionText.match(/ACTION:\s*(.+)/);
-        const queryMatch = actionText.match(/QUERY:\s*(.+)/);
-        const initialMatch = actionText.match(/INITIAL_MESSAGE:\s*(.+)/);
+        const actionMatch = actionText.match(/ACTION:\s*([^\n]+)/);
+        const queryMatch = actionText.match(/QUERY:\s*([^\n]+)/);
+        const initialMatch = actionText.match(/INITIAL_MESSAGE:\s*(.+)/s);
         
         const action = actionMatch ? actionMatch[1].trim() : 'CHAT';
         const query = queryMatch ? queryMatch[1].trim() : '';
         const initialMessage = initialMatch ? initialMatch[1].trim() : null;
+        
+        console.log('Parsed - Action:', action, 'Query:', query, 'Initial:', initialMessage);
 
         // Return initial response to show user
         return {
@@ -184,7 +193,15 @@ ${searchResults}
         );
 
         const finalData = await finalResponse.json();
-        const reply = finalData?.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성할 수 없습니다.';
+        console.log('Final Response from Gemini:', finalData);
+        
+        let reply = finalData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        // Fallback if no reply
+        if (!reply) {
+          console.error('No reply generated, using fallback');
+          reply = searchResults || '죄송합니다. 답변을 생성할 수 없습니다.';
+        }
 
         return {
           statusCode: 200,
@@ -192,7 +209,7 @@ ${searchResults}
           body: JSON.stringify({
             step: 2,
             reply,
-            searchResults: searchResults ? searchResults.split('\n').slice(0, 3) : null
+            searchResults: searchResults ? searchResults.split('\n').filter(s => s.trim()).slice(0, 3) : null
           })
         };
       }
