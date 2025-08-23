@@ -175,7 +175,10 @@ exports.handler = async (event, context) => {
             }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 150
+              maxOutputTokens: 256,
+              candidateCount: 1,
+              topK: 40,
+              topP: 0.95
             }
           })
         }
@@ -196,7 +199,26 @@ exports.handler = async (event, context) => {
       }
 
       const data = await response.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, no response';
+      console.log('Gemini response:', JSON.stringify(data).substring(0, 500));
+      
+      // More robust response extraction
+      let reply = 'Sorry, no response';
+      
+      if (data && data.candidates && data.candidates.length > 0) {
+        const candidate = data.candidates[0];
+        if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+          reply = candidate.content.parts[0].text;
+        }
+      }
+      
+      // Fallback for different response structures
+      if (reply === 'Sorry, no response' && data.candidates?.[0]?.output) {
+        reply = data.candidates[0].output;
+      }
+      
+      if (reply === 'Sorry, no response') {
+        console.error('Failed to extract reply from:', data);
+      }
 
       return {
         statusCode: 200,
