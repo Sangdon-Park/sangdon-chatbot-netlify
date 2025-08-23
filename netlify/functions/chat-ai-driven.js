@@ -1,6 +1,42 @@
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 
+// Enhanced database with proper search capability
+const PAPERS_DATABASE = [
+  // 2024
+  { title: "Real-Time Dynamic Pricing for Edge Computing Services", journal: "IEEE Access", year: 2024, role: "1저자", authors: ["박상돈"], keywords: ["edge computing", "pricing", "real-time"] },
+  { title: "Dynamic Bandwidth Slicing in PON for Federated Learning", journal: "Sensors", year: 2024, role: "교신", authors: ["박상돈"], keywords: ["PON", "federated learning", "bandwidth"] },
+  
+  // 2022
+  { title: "Differential Pricing-Based Task Offloading for IoT", journal: "IEEE IoT Journal", year: 2022, role: "교신", authors: ["박상돈", "오현택", "최준균"], keywords: ["IoT", "pricing", "task offloading"] },
+  { title: "Joint Subcarrier and Transmission Power in WPT System", journal: "IEEE IoT Journal", year: 2022, role: "교신", authors: ["박상돈", "최준균"], keywords: ["WPT", "power", "IoT"] },
+  { title: "Multivariate-Time-Series-Prediction for IoT", journal: "IEEE IoT Journal", year: 2022, role: "교신", authors: ["박상돈", "최준균"], keywords: ["IoT", "time series", "prediction"] },
+  
+  // 2020
+  { title: "Three Dynamic Pricing Schemes for Edge Computing", journal: "IEEE IoT Journal", year: 2020, role: "교신", authors: ["박상돈", "이주형", "최준균"], keywords: ["edge computing", "pricing", "IoT"] },
+  { title: "Competitive Data Trading Model With Privacy Valuation", journal: "IEEE IoT Journal", year: 2020, role: "교신", authors: ["박상돈", "오현택", "최준균"], keywords: ["data trading", "privacy", "IoT"] },
+  { title: "Time Series Forecasting Based Energy Trading", journal: "IEEE Access", year: 2020, role: "교신", authors: ["박상돈", "황강욱"], keywords: ["energy", "time series", "trading"] },
+  
+  // 2019
+  { title: "Battery-Wear-Model-Based Energy Trading in EVs", journal: "IEEE TII", year: 2019, role: "교신", authors: ["박상돈", "이주형", "최준균"], keywords: ["EV", "battery", "energy trading"] },
+  { title: "Personal Data Trading Scheme for IoT Data Marketplaces", journal: "IEEE Access", year: 2019, role: "교신", authors: ["박상돈", "오현택", "이주형"], keywords: ["data marketplace", "IoT", "privacy"] },
+  { title: "Power Efficient Clustering for 5G Mobile Edge Computing", journal: "Mobile Networks", year: 2019, role: "교신", authors: ["박상돈", "이주형"], keywords: ["5G", "edge computing", "clustering"] },
+  { title: "Optimal throughput analysis of CR networks", journal: "Annals of OR", year: 2019, role: "1저자", authors: ["박상돈", "황강욱", "최준균"], keywords: ["cognitive radio", "throughput", "optimization"] },
+  
+  // 2018
+  { title: "Competitive Partial Computation Offloading", journal: "IEEE Access", year: 2018, role: "교신", authors: ["박상돈", "이주형", "최준균"], keywords: ["edge computing", "offloading", "competition"] },
+  { title: "Optimal Pricing for Energy-Efficient MEC Offloading", journal: "IEEE Comm Letters", year: 2018, role: "교신", authors: ["박상돈"], keywords: ["MEC", "pricing", "energy"] },
+  { title: "Load Profile Extraction by Mean-Shift Clustering", journal: "Energies", year: 2018, role: "교신", authors: ["박상돈", "이주형"], keywords: ["clustering", "load profile", "machine learning"] },
+  
+  // 2017
+  { title: "Event-Driven Energy Trading System in Microgrids", journal: "IEEE Access", year: 2017, role: "1저자", authors: ["박상돈", "이주형", "황강욱", "최준균"], keywords: ["microgrid", "energy trading", "event-driven"] },
+  { title: "Learning-Based Adaptive Imputation Method With kNN", journal: "Energies", year: 2017, role: "교신", authors: ["박상돈", "이주형", "최준균"], keywords: ["kNN", "imputation", "machine learning"] },
+  { title: "Resilient Linear Classification: Attack on Training Data", journal: "ACM/IEEE ICCPS", year: 2017, role: "1저자", authors: ["박상돈"], keywords: ["machine learning", "security", "classification"] },
+  
+  // 2016
+  { title: "Contribution-Based Energy-Trading in Microgrids", journal: "IEEE TIE", year: 2016, role: "1저자", authors: ["박상돈", "이주형", "황강욱", "최준균"], keywords: ["microgrid", "energy trading", "game theory"], award: "IEEE ITeN 선정" }
+];
+
 // Site content database for AI to search
 const KNOWLEDGE_BASE = {
   publications: {
@@ -131,23 +167,18 @@ exports.handler = async (event, context) => {
         const actionPrompt = `당신은 박상돈 본인입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
 
 사용 가능한 행동:
-- SEARCH_PAPERS: 논문 관련 질문 (논문 찾기, 특정 주제 논문)
-- COUNT_PAPERS: 논문 개수 질문 (몇 편, 얼마나)
-- ANALYZE_COLLABORATORS: 공동연구자 질문 (누구와, 같이)
-- SEARCH_COLLABORATOR_PAPERS: 특정 공동연구자와의 논문 리스트
-- SEARCH_ARTICLES: 블로그/글 관련
-- SEARCH_PROJECTS: 프로젝트 관련
-- CHAT: 인사, 일반 대화, 위에 해당 안 되는 것
+- SEARCH: 논문, 공동연구자, 주제 등 모든 검색 관련 질문
+- CHAT: 인사, 일반 대화, 검색이 필요 없는 것
 
 예시:
-Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH_PAPERS, QUERY: AI
-Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH_COLLABORATOR_PAPERS, QUERY: 황강욱
-Q: "논문 몇 편?" → ACTION: COUNT_PAPERS
+Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH, QUERY: AI 논문
+Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH, QUERY: 황강욱
+Q: "논문 몇 편?" → ACTION: SEARCH, QUERY: 논문 개수 통계
 Q: "안녕하세요" → ACTION: CHAT
 
 반드시 이 형식으로 응답:
-ACTION: [행동명]
-QUERY: [검색어]
+ACTION: [SEARCH 또는 CHAT]
+QUERY: [검색어 - SEARCH일 때만]
 INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아니면 "확인해보겠습니다" 류]
 
 사용자: ${message}`;
@@ -205,46 +236,92 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         let searchResults = '';
         
-        // Execute the action
-        if (action === 'SEARCH_PAPERS' || action === 'COUNT_PAPERS') {
+        // Execute intelligent search
+        if (action === 'SEARCH') {
           const queryLower = query.toLowerCase();
           
-          if (queryLower.includes('엣지') || queryLower.includes('edge')) {
-            searchResults = `엣지 컴퓨팅 관련 논문 (6편):\n${KNOWLEDGE_BASE.publications.all_papers.edge_computing.join('\n')}`;
-          } else if (queryLower.includes('ai') || queryLower.includes('ml') || queryLower.includes('machine') || queryLower.includes('learning')) {
-            searchResults = `AI/머신러닝 관련 논문 (3편):\n${KNOWLEDGE_BASE.publications.all_papers.ai_ml.join('\n')}\n\nAI 관련 프로젝트:\n- AI 캐릭터 대화 시스템 (Gemini API 활용)\n- Edge Computing GUI Simulator (AI o1-preview 활용 개발)`;
+          // Smart search through papers database
+          const results = [];
+          
+          // Search for collaborator-specific papers
+          if (queryLower.includes('황강욱') || queryLower.includes('hwang')) {
+            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('황강욱'));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})${p.award ? ' - ' + p.award : ''}`));
+            searchResults = `황강욱 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
+          } else if (queryLower.includes('이주형') || queryLower.includes('joohyung')) {
+            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('이주형'));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `이주형 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
+          } else if (queryLower.includes('최준균') || queryLower.includes('choi')) {
+            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('최준균'));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `최준균 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
+          } else if (queryLower.includes('오현택')) {
+            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('오현택'));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `오현택 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
+          }
+          // Search by topic/keyword
+          else if (queryLower.includes('edge') || queryLower.includes('엣지')) {
+            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('edge')));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `엣지 컴퓨팅 관련 논문 (${results.length}편):\n${results.join('\n')}`;
           } else if (queryLower.includes('iot')) {
-            searchResults = `IoT 관련 논문 (5편):\n${KNOWLEDGE_BASE.publications.all_papers.iot.join('\n')}`;
+            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('iot')) || p.keywords.some(k => k.includes('IoT')));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `IoT 관련 논문 (${results.length}편):\n${results.join('\n')}`;
           } else if (queryLower.includes('energy') || queryLower.includes('에너지')) {
-            searchResults = `에너지 거래 관련 논문 (4편):\n${KNOWLEDGE_BASE.publications.all_papers.energy.join('\n')}`;
-          } else {
-            searchResults = KNOWLEDGE_BASE.publications.stats;
+            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('energy')));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `에너지 관련 논문 (${results.length}편):\n${results.join('\n')}`;
+          } else if (queryLower.includes('ai') || queryLower.includes('machine') || queryLower.includes('learning')) {
+            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('machine learning') || k.includes('classification') || k.includes('clustering') || k.includes('kNN')));
+            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `AI/머신러닝 관련 논문 (${results.length}편):\n${results.join('\n')}`;
           }
-        } else if (action === 'ANALYZE_COLLABORATORS') {
-          searchResults = KNOWLEDGE_BASE.publications.collaborators;
-        } else if (action === 'SEARCH_COLLABORATOR_PAPERS') {
-          const queryLower = query.toLowerCase();
-          
-          if (queryLower.includes('황강욱') || queryLower.includes('hwang') || queryLower.includes('ganguk')) {
-            const papers = KNOWLEDGE_BASE.publications.by_collaborator['황강욱'];
-            searchResults = `황강욱 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
-          } else if (queryLower.includes('이주형') || queryLower.includes('joohyung') || queryLower.includes('lee')) {
-            const papers = KNOWLEDGE_BASE.publications.by_collaborator['이주형'];
-            searchResults = `이주형 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
-          } else if (queryLower.includes('최준균') || queryLower.includes('jun kyun') || queryLower.includes('choi')) {
-            const papers = KNOWLEDGE_BASE.publications.by_collaborator['최준균'];
-            searchResults = `최준균 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
-          } else if (queryLower.includes('오현택') || queryLower.includes('hyeontaek') || queryLower.includes('oh')) {
-            const papers = KNOWLEDGE_BASE.publications.by_collaborator['오현택'];
-            searchResults = `오현택 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
-          } else {
-            // 모든 공동연구자 정보 제공
-            searchResults = `주요 공동연구자:\n${KNOWLEDGE_BASE.publications.collaborators}\n\n특정 교수님과의 논문을 원하시면 이름을 말씀해주세요.`;
+          // Count papers
+          else if (queryLower.includes('몇') || queryLower.includes('개수') || queryLower.includes('통계')) {
+            const firstAuthorCount = PAPERS_DATABASE.filter(p => p.role === '1저자').length;
+            const correspondingCount = PAPERS_DATABASE.filter(p => p.role === '교신').length;
+            const journalCount = PAPERS_DATABASE.filter(p => !p.journal.includes('Conference') && !p.journal.includes('ICCPS') && !p.journal.includes('QTNA') && !p.journal.includes('ICUFN')).length;
+            
+            // Count unique collaborators
+            const collaborators = {};
+            PAPERS_DATABASE.forEach(p => {
+              p.authors.forEach(author => {
+                if (author !== '박상돈') {
+                  collaborators[author] = (collaborators[author] || 0) + 1;
+                }
+              });
+            });
+            
+            const sortedCollaborators = Object.entries(collaborators)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 4)
+              .map(([name, count]) => `${name}(${count}편)`)
+              .join(', ');
+            
+            searchResults = `논문 통계:\n총 ${PAPERS_DATABASE.length}편 (국제저널 ${journalCount}편)\n1저자 ${firstAuthorCount}편, 교신저자 ${correspondingCount}편\n주요 공동연구자: ${sortedCollaborators}`;
           }
-        } else if (action === 'SEARCH_ARTICLES') {
-          searchResults = KNOWLEDGE_BASE.articles.join('\n');
-        } else if (action === 'SEARCH_PROJECTS') {
-          searchResults = KNOWLEDGE_BASE.projects.join('\n');
+          // Search by year
+          else if (queryLower.match(/\d{4}/)) {
+            const year = parseInt(queryLower.match(/\d{4}/)[0]);
+            const papers = PAPERS_DATABASE.filter(p => p.year === year);
+            results.push(...papers.map(p => `${p.title} (${p.journal}, ${p.role})`));
+            searchResults = `${year}년 논문 (${results.length}편):\n${results.join('\n')}`;
+          }
+          // Articles and projects
+          else if (queryLower.includes('블로그') || queryLower.includes('글') || queryLower.includes('아티클')) {
+            searchResults = KNOWLEDGE_BASE.articles.join('\n');
+          } else if (queryLower.includes('프로젝트')) {
+            searchResults = KNOWLEDGE_BASE.projects.join('\n');
+          }
+          // Default: show recent papers
+          else {
+            const recentPapers = PAPERS_DATABASE.slice(0, 5);
+            results.push(...recentPapers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
+            searchResults = `최근 논문:\n${results.join('\n')}`;
+          }
         }
 
         // Generate final response with context
