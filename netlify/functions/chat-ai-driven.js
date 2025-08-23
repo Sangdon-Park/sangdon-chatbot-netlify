@@ -331,11 +331,46 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const queryMatch = actionText.match(/QUERY:\s*([^\n]+)/);
         const initialMatch = actionText.match(/INITIAL_MESSAGE:\s*(.+)/s);
         
-        const action = actionMatch ? actionMatch[1].trim() : 'CHAT';
-        const query = queryMatch ? queryMatch[1].trim() : '';
-        const initialMessage = initialMatch ? initialMatch[1].trim() : null;
+        let action = actionMatch ? actionMatch[1].trim() : 'CHAT';
+        let query = queryMatch ? queryMatch[1].trim() : '';
+        let initialMessage = initialMatch ? initialMatch[1].trim() : null;
+
+        // Heuristic override: if LLM decided CHAT but the message strongly suggests search
+        // we trigger SEARCH to leverage local RAG for accuracy.
+        function messageSuggestsSearch(text) {
+          const tks = expandTokensWithSynonyms(tokenize(text || ''));
+          if (tks.length === 0) return false;
+          // Build a small haystack from known content
+          const hayArr = [];
+          for (const p of PAPERS_DATABASE) {
+            hayArr.push((p.title||'').toLowerCase());
+            if (Array.isArray(p.keywords)) hayArr.push(p.keywords.join(' ').toLowerCase());
+            hayArr.push((p.journal||'').toLowerCase());
+          }
+          for (const a of POSTS_DATABASE) {
+            hayArr.push((a.title||'').toLowerCase());
+            if (Array.isArray(a.keywords)) hayArr.push(a.keywords.join(' ').toLowerCase());
+            hayArr.push((a.description||'').toLowerCase());
+          }
+          const hay = hayArr.join(' ');
+          let hits = 0;
+          for (const tk of tks) {
+            if (hay.includes(tk)) {
+              hits += 1;
+              if (hits >= 1) return true;
+            }
+          }
+          return false;
+        }
+
+        if (action !== 'SEARCH' && messageSuggestsSearch(message)) {
+          console.log('Override: Forcing SEARCH based on local heuristic');
+          action = 'SEARCH';
+          if (!query) query = message;
+          if (!initialMessage) initialMessage = '관련 자료를 확인해보겠습니다.';
+        }
         
-        console.log('Parsed - Action:', action, 'Query:', query, 'Initial:', initialMessage);
+        console.log('Parsed/Resolved - Action:', action, 'Query:', query, 'Initial:', initialMessage);
 
         // Return initial response to show user
         return {
