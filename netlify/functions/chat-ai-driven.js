@@ -305,6 +305,37 @@ ${searchResults}
           reply = searchResults || '죄송합니다. 답변을 생성할 수 없습니다.';
         }
 
+        // Log to Supabase
+        try {
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+          
+          if (supabaseUrl && supabaseKey) {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            // Get IP address
+            const ip = event.headers['x-forwarded-for'] || 
+                      event.headers['client-ip'] || 
+                      'unknown';
+            
+            await supabase
+              .from('chat_logs')
+              .insert([
+                {
+                  message: message,
+                  response: reply,
+                  ip_address: ip,
+                  user_agent: event.headers['user-agent'] || 'unknown'
+                }
+              ]);
+            
+            console.log('Logged to Supabase successfully');
+          }
+        } catch (logError) {
+          console.error('Failed to log to Supabase:', logError);
+          // Continue even if logging fails
+        }
+
         return {
           statusCode: 200,
           headers,
