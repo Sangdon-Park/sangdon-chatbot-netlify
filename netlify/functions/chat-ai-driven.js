@@ -2,6 +2,14 @@ const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 
 // Enhanced database with proper search capability
+const POSTS_DATABASE = [
+  { title: "AI LLM에 미쳐있던 8개월", type: "article", keywords: ["AI", "LLM", "ChatGPT", "Claude", "Gemini"], year: 2024 },
+  { title: "AI 없이는 불가능했던 동대표 활동", type: "article", keywords: ["AI", "동대표", "자동화"], year: 2024 },
+  { title: "Serena MCP 설치 가이드", type: "article", keywords: ["Serena", "MCP", "Claude Code"], year: 2024 },
+  { title: "Edge Computing GUI Simulator 프로젝트", type: "project", keywords: ["edge computing", "simulator", "GUI"], year: 2024, description: "4년 염원 1개월 완성" },
+  { title: "AI 캐릭터 대화 시스템", type: "project", keywords: ["AI", "character", "Gemini", "Harry Potter"], year: 2024, description: "해리포터 캐릭터 구현" }
+];
+
 const PAPERS_DATABASE = [
   // 2024
   { title: "Real-Time Dynamic Pricing for Edge Computing Services", journal: "IEEE Access", year: 2024, role: "1저자", authors: ["박상돈"], keywords: ["edge computing", "pricing", "real-time"] },
@@ -118,15 +126,7 @@ const KNOWLEDGE_BASE = {
     stats: "총 25편 국제저널 (1저자 4편, 교신저자 13편), 10편 국제학회",
     collaborators: "이주형(15편), 최준균(14편), 오현택(4편), 황강욱(4편)"
   },
-  articles: [
-    "AI LLM에 미쳐있던 8개월 - ChatGPT, Claude, Gemini 마스터",
-    "AI 없이는 불가능했던 동대표 활동",
-    "Serena MCP 설치 가이드"
-  ],
-  projects: [
-    "Edge Computing GUI Simulator - 4년 염원 1개월 완성",
-    "AI 캐릭터 대화 시스템 - 해리포터 캐릭터 구현"
-  ]
+  posts: POSTS_DATABASE  // Use the unified database
 };
 
 exports.handler = async (event, context) => {
@@ -310,11 +310,21 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             results.push(...papers.map(p => `${p.title} (${p.journal}, ${p.role})`));
             searchResults = `${year}년 논문 (${results.length}편):\n${results.join('\n')}`;
           }
-          // Articles and projects
-          else if (queryLower.includes('블로그') || queryLower.includes('글') || queryLower.includes('아티클')) {
-            searchResults = KNOWLEDGE_BASE.articles.join('\n');
+          // Search posts/articles/projects
+          else if (queryLower.includes('포스트') || queryLower.includes('블로그') || queryLower.includes('글') || queryLower.includes('아티클')) {
+            const articles = POSTS_DATABASE.filter(p => p.type === 'article');
+            results.push(...articles.map(p => p.title));
+            searchResults = `작성한 글/포스트 (${articles.length}개):\n${results.join('\n')}`;
           } else if (queryLower.includes('프로젝트')) {
-            searchResults = KNOWLEDGE_BASE.projects.join('\n');
+            const projects = POSTS_DATABASE.filter(p => p.type === 'project');
+            results.push(...projects.map(p => `${p.title} - ${p.description}`));
+            searchResults = `진행한 프로젝트 (${projects.length}개):\n${results.join('\n')}`;
+          }
+          // Count all posts
+          else if ((queryLower.includes('포스트') || queryLower.includes('글')) && (queryLower.includes('몇') || queryLower.includes('개수'))) {
+            const articles = POSTS_DATABASE.filter(p => p.type === 'article').length;
+            const projects = POSTS_DATABASE.filter(p => p.type === 'project').length;
+            searchResults = `전체 포스트/글 통계:\n블로그 글: ${articles}개\n프로젝트: ${projects}개\n총 ${articles + projects}개 작성`;
           }
           // Default: show recent papers
           else {
