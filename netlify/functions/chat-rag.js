@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const KNOWLEDGE_BASE = {
   강연료: {
     keywords: ['강연료', '세미나', '비용', '얼마', '강의료', '강사료'],
-    response: '대학 초청 강연은 보통 2-3시간 기준으로 100-150만원 정도 받고 있습니다. 기업 세미나는 내용에 따라 조율하고 있고요.',
+    response: '대학 초청 강연은 보통 30-60만원 정도 받고 있습니다. 대부분 온라인으로 진행하고 있어요.',
     context: '강연료는 내용과 시간에 따라 유연하게 협의'
   },
   현재직장: {
