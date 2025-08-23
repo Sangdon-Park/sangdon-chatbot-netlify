@@ -236,127 +236,46 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         let searchResults = '';
         
-        // Execute intelligent search
+        // Execute intelligent search - let AI handle the search
         if (action === 'SEARCH') {
-          const queryLower = query.toLowerCase();
-          
-          // Smart search through papers database
-          const results = [];
-          
-          // Search for collaborator-specific papers
-          if (queryLower.includes('황강욱') || queryLower.includes('hwang')) {
-            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('황강욱'));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})${p.award ? ' - ' + p.award : ''}`));
-            searchResults = `황강욱 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('이주형') || queryLower.includes('joohyung')) {
-            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('이주형'));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `이주형 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('최준균') || queryLower.includes('choi')) {
-            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('최준균'));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `최준균 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('오현택')) {
-            const papers = PAPERS_DATABASE.filter(p => p.authors.includes('오현택'));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `오현택 교수님과 함께 작성한 논문 (${results.length}편):\n${results.join('\n')}`;
-          }
-          // Search by topic/keyword
-          else if (queryLower.includes('edge') || queryLower.includes('엣지')) {
-            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('edge')));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `엣지 컴퓨팅 관련 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('iot')) {
-            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('iot')) || p.keywords.some(k => k.includes('IoT')));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `IoT 관련 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('energy') || queryLower.includes('에너지')) {
-            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('energy')));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `에너지 관련 논문 (${results.length}편):\n${results.join('\n')}`;
-          } else if (queryLower.includes('ai') || queryLower.includes('machine') || queryLower.includes('learning')) {
-            const papers = PAPERS_DATABASE.filter(p => p.keywords.some(k => k.includes('machine learning') || k.includes('classification') || k.includes('clustering') || k.includes('kNN')));
-            results.push(...papers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `AI/머신러닝 관련 논문 (${results.length}편):\n${results.join('\n')}`;
-          }
-          // Count papers
-          else if (queryLower.includes('몇') || queryLower.includes('개수') || queryLower.includes('통계')) {
-            const firstAuthorCount = PAPERS_DATABASE.filter(p => p.role === '1저자').length;
-            const correspondingCount = PAPERS_DATABASE.filter(p => p.role === '교신').length;
-            const journalCount = PAPERS_DATABASE.filter(p => !p.journal.includes('Conference') && !p.journal.includes('ICCPS') && !p.journal.includes('QTNA') && !p.journal.includes('ICUFN')).length;
-            
-            // Count unique collaborators
-            const collaborators = {};
-            PAPERS_DATABASE.forEach(p => {
-              p.authors.forEach(author => {
-                if (author !== '박상돈') {
-                  collaborators[author] = (collaborators[author] || 0) + 1;
-                }
-              });
-            });
-            
-            const sortedCollaborators = Object.entries(collaborators)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 4)
-              .map(([name, count]) => `${name}(${count}편)`)
-              .join(', ');
-            
-            searchResults = `논문 통계:\n총 ${PAPERS_DATABASE.length}편 (국제저널 ${journalCount}편)\n1저자 ${firstAuthorCount}편, 교신저자 ${correspondingCount}편\n주요 공동연구자: ${sortedCollaborators}`;
-          }
-          // Search by year
-          else if (queryLower.match(/\d{4}/)) {
-            const year = parseInt(queryLower.match(/\d{4}/)[0]);
-            const papers = PAPERS_DATABASE.filter(p => p.year === year);
-            results.push(...papers.map(p => `${p.title} (${p.journal}, ${p.role})`));
-            searchResults = `${year}년 논문 (${results.length}편):\n${results.join('\n')}`;
-          }
-          // Search posts/articles/projects with keyword filtering
-          else if (queryLower.includes('포스트') || queryLower.includes('블로그') || queryLower.includes('글') || queryLower.includes('아티클')) {
-            let posts = POSTS_DATABASE.filter(p => p.type === 'article' || p.type === 'project');
-            
-            // Apply keyword filter if present
-            if (queryLower.includes('ai') || queryLower.includes('llm')) {
-              posts = posts.filter(p => p.keywords.some(k => k.toLowerCase().includes('ai') || k.toLowerCase().includes('llm')));
-              results.push(...posts.map(p => p.title));
-              searchResults = `AI 관련 포스트/프로젝트 (${posts.length}개):\n${results.join('\n')}`;
-            } else if (queryLower.includes('프로젝트')) {
-              posts = posts.filter(p => p.type === 'project');
-              results.push(...posts.map(p => `${p.title} - ${p.description}`));
-              searchResults = `진행한 프로젝트 (${posts.length}개):\n${results.join('\n')}`;
-            } else {
-              // All articles
-              posts = posts.filter(p => p.type === 'article');
-              results.push(...posts.map(p => p.title));
-              searchResults = `작성한 글/포스트 (${posts.length}개):\n${results.join('\n')}`;
+          // Combine all data for AI to search through
+          const allData = {
+            papers: PAPERS_DATABASE,
+            posts: POSTS_DATABASE,
+            stats: {
+              totalPapers: PAPERS_DATABASE.length,
+              firstAuthor: PAPERS_DATABASE.filter(p => p.role === '1저자').length,
+              corresponding: PAPERS_DATABASE.filter(p => p.role === '교신').length,
+              articles: POSTS_DATABASE.filter(p => p.type === 'article').length,
+              projects: POSTS_DATABASE.filter(p => p.type === 'project').length
             }
-          }
-          // Count all posts
-          else if ((queryLower.includes('포스트') || queryLower.includes('글')) && (queryLower.includes('몇') || queryLower.includes('개수'))) {
-            const articles = POSTS_DATABASE.filter(p => p.type === 'article').length;
-            const projects = POSTS_DATABASE.filter(p => p.type === 'project').length;
-            searchResults = `전체 포스트/글 통계:\n블로그 글: ${articles}개\n프로젝트: ${projects}개\n총 ${articles + projects}개 작성`;
-          }
-          // Default: show recent papers
-          else {
-            const recentPapers = PAPERS_DATABASE.slice(0, 5);
-            results.push(...recentPapers.map(p => `${p.title} (${p.journal} ${p.year}, ${p.role})`));
-            searchResults = `최근 논문:\n${results.join('\n')}`;
-          }
+          };
+          
+          // Convert to searchable text format for AI
+          searchResults = JSON.stringify(allData);
         }
 
         // Generate final response with context
-        const finalPrompt = `당신은 박상돈 본인입니다. 실제 사람처럼 자연스럽게 대화하세요.
+        const finalPrompt = `당신은 박상돈 본인입니다. 사용자 질문에 대해 제공된 데이터에서 정보를 찾아 답변하세요.
 
-사용자가 물어본 것: ${message}
+사용자 질문: ${message}
 
-내가 확인한 정보:
+데이터베이스 정보:
 ${searchResults}
 
-위 정보를 바탕으로 사용자 질문에 정확하고 자연스럽게 답변하세요.
-- 정보가 있으면 구체적으로 언급 (예: "네, 황강욱 교수님과는 에너지 트레이딩과 인지 무선 네트워크 관련 논문 4편을 함께 썼습니다")
-- 리스트가 길면 주요 논문 2-3개만 간단히 언급
-- 1-2문장으로 간결하게, 존댓말 사용
-- 자연스러운 대화체로 응답`;
+답변 방법:
+1. 사용자가 원하는 정보를 데이터에서 찾아 답변
+2. 논문 검색: authors 필드에서 이름 찾기, keywords로 주제 매칭
+3. 포스트/글 검색: posts의 title과 keywords 확인
+4. 통계 질문: stats 정보 활용
+5. 특정 교수와의 논문: authors 배열에서 해당 이름 포함된 논문 찾기
+6. "serena mcp 설치법"처럼 특정 키워드가 있으면 posts에서 관련 title 찾기
+
+답변 스타일:
+- 1-2문장으로 간결하게
+- 자연스러운 한국어 존댓말
+- 리스트가 길면 2-3개만 언급
+- 정확한 정보만 제공`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
