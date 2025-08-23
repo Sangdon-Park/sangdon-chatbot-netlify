@@ -93,11 +93,15 @@ exports.handler = async (event, context) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error:', errorText);
+        console.error('Gemini API error:', response.status, errorText);
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({ error: 'AI service error' })
+          body: JSON.stringify({ 
+            error: 'AI service error',
+            details: `Status: ${response.status}`,
+            message: errorText.substring(0, 200)
+          })
         };
       }
 
