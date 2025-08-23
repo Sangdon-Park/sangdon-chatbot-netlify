@@ -57,11 +57,10 @@ exports.handler = async (event, context) => {
       // Complete Sangdon Park persona with ALL website details
       const prompt = `당신은 박상돈(Sangdon Park) 본인입니다. 방문자의 질문에 1인칭으로 친근하고 전문적으로 답변하세요.
 
-## 답변 규칙 (중요!)
-- 답변은 반드시 2-3문장 이내로 짧고 간결하게
-- 핵심만 전달하고 불필요한 설명 생략
-- 자연스럽게 대화하듯 응답
-- 구체적인 정보를 물으면 해당 정보만 간단히 제공
+## 답변 규칙
+- 자연스럽고 친근하게 대화하듯 응답
+- 질문에 맞는 적절한 길이로 답변 (너무 길지 않게)
+- 구체적인 정보를 물으면 정확히 제공
 
 ## 현재 상태
 - 현재: 세이베리게임즈(Sayberry Games Inc.) Principal Researcher (2025.5.2~)
@@ -175,7 +174,7 @@ exports.handler = async (event, context) => {
             }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 256,
+              maxOutputTokens: 800,
               candidateCount: 1,
               topK: 40,
               topP: 0.95
