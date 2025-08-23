@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
   // CORS headers
@@ -45,6 +46,8 @@ exports.handler = async (event, context) => {
       }
 
       const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+      const SUPABASE_URL = process.env.SUPABASE_URL;
+      const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
       if (!GEMINI_API_KEY) {
         return {
@@ -52,6 +55,12 @@ exports.handler = async (event, context) => {
           headers,
           body: JSON.stringify({ error: 'API key not configured' })
         };
+      }
+
+      // Initialize Supabase client with service key (server-side only)
+      let supabase;
+      if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+        supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
       }
 
       // Complete Sangdon Park persona with ALL website details
@@ -222,6 +231,32 @@ ${history.length > 0 ? history.map(h => `${h.role === 'user' ? '방문자' : '�
       
       if (reply === 'Sorry, no response') {
         console.error('Failed to extract reply from:', data);
+      }
+
+      // Save to Supabase if configured
+      if (supabase) {
+        try {
+          // Save the conversation to Supabase
+          const { data: chatLog, error: dbError } = await supabase
+            .from('chat_logs')
+            .insert([
+              {
+                user_message: message,
+                bot_response: reply,
+                conversation_history: history,
+                created_at: new Date().toISOString(),
+                user_ip: event.headers['x-forwarded-for'] || event.headers['client-ip'] || 'unknown'
+              }
+            ]);
+
+          if (dbError) {
+            console.error('Supabase save error:', dbError);
+            // Don't fail the request if logging fails
+          }
+        } catch (logError) {
+          console.error('Failed to log to Supabase:', logError);
+          // Continue without failing
+        }
       }
 
       return {
