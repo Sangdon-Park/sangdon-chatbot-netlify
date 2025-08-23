@@ -129,14 +129,70 @@ const KNOWLEDGE_BASE = {
   posts: POSTS_DATABASE  // Use the unified database
 };
 
-// Simple relevance scoring search across local databases
-function simpleSearch(query, papers, posts, maxResults = 5) {
-  if (!query || typeof query !== 'string') return [];
+// --- Keyword synonyms (lowercase) ---
+const KEYWORD_SYNONYMS = {
+  edge: ['edge', 'edge-computing', 'edge computing', '엣지', '엣지컴퓨팅', '엣지 컴퓨팅', 'mec', 'mobile-edge', 'mobile edge', '모바일 엣지'],
+  iot: ['iot', 'internet of things', '사물인터넷', '인터넷오브씽즈', '인터넷 오브 씽즈'],
+  pricing: ['pricing', 'price', 'dynamic pricing', '가격', '가격책정', '가격 정책', '가격결정', '프라이싱'],
+  federated: ['federated', 'federated learning', '연합학습', '연합 학습', '연합'],
+  microgrid: ['microgrid', '마이크로그리드', '에너지 거래', 'energy trading'],
+  wpt: ['wpt', 'wireless power transfer', '무선전력전송', '무선 전력 전송'],
+  clustering: ['clustering', 'cluster', 'mean-shift', 'mean shift', '클러스터링', '평균 이동'],
+  blockchain: ['blockchain', '블록체인', 'data marketplace', '데이터 마켓', '데이터 거래'],
+  privacy: ['privacy', '프라이버시', '개인 정보', '개인정보'],
+  simulator: ['simulator', '시뮬레이터', 'simulation', '시뮬레이션'],
+  character: ['character', '캐릭터', 'npc', 'conversation', '대화', '대화 시스템']
+};
 
-  const tokens = query
+// Build inverted index: token -> canonical keys
+const TOKEN_TO_CANONICAL = (() => {
+  const map = new Map();
+  for (const [canonical, variants] of Object.entries(KEYWORD_SYNONYMS)) {
+    for (const v of variants) {
+      map.set(v.toLowerCase(), canonical);
+    }
+    map.set(canonical.toLowerCase(), canonical);
+  }
+  return map;
+})();
+
+function tokenize(str) {
+  return (str || '')
     .toLowerCase()
     .split(/[^a-z0-9가-힣]+/)
     .filter(Boolean);
+}
+
+function expandTokensWithSynonyms(tokens) {
+  const expanded = new Set(tokens);
+  for (const t of tokens) {
+    const canonical = TOKEN_TO_CANONICAL.get(t);
+    if (canonical) {
+      expanded.add(canonical);
+      for (const v of KEYWORD_SYNONYMS[canonical]) expanded.add(v.toLowerCase());
+    }
+  }
+  return Array.from(expanded);
+}
+
+function computeMatchScore(tokens, hayLower) {
+  let score = 0;
+  for (const t of tokens) {
+    if (hayLower.includes(t)) {
+      // boost canonical tokens slightly
+      const isCanonical = KEYWORD_SYNONYMS[t] !== undefined;
+      score += isCanonical ? 2 : 1;
+    }
+  }
+  return score;
+}
+
+// Simple relevance scoring search across local databases with synonyms expansion
+function simpleSearch(query, papers, posts, maxResults = 5) {
+  if (!query || typeof query !== 'string') return [];
+
+  const baseTokens = tokenize(query);
+  const tokens = expandTokensWithSynonyms(baseTokens);
 
   const scored = [];
 
@@ -152,8 +208,7 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
       .join(' ')
       .toLowerCase();
 
-    let score = 0;
-    for (const t of tokens) if (hay.includes(t)) score += 1;
+    const score = computeMatchScore(tokens, hay);
     if (score > 0) {
       const label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
       scored.push({ label, score });
@@ -165,8 +220,7 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
     const hay = [a.title || '', a.description || '', ...(a.keywords || [])]
       .join(' ')
       .toLowerCase();
-    let score = 0;
-    for (const t of tokens) if (hay.includes(t)) score += 1;
+    const score = computeMatchScore(tokens, hay);
     if (score > 0) {
       const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
       scored.push({ label, score });
@@ -180,10 +234,8 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
 // Filter papers by free-text query tokens
 function filterPapersByQuery(query, papers) {
   if (!query || typeof query !== 'string') return [];
-  const tokens = query
-    .toLowerCase()
-    .split(/[^a-z0-9가-힣]+/)
-    .filter(Boolean);
+  const baseTokens = tokenize(query);
+  const tokens = expandTokensWithSynonyms(baseTokens);
   if (tokens.length === 0) return [];
 
   return papers.filter(p => {
@@ -194,8 +246,7 @@ function filterPapersByQuery(query, papers) {
       ...(p.authors || []),
       ...(p.keywords || [])
     ].join(' ').toLowerCase();
-    // Require at least one token match
-    return tokens.some(t => hay.includes(t));
+    return computeMatchScore(tokens, hay) > 0;
   });
 }
 
