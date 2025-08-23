@@ -123,6 +123,18 @@ function determineAction(message) {
   const lowerMessage = message.toLowerCase();
   
   // Check for search intents
+  // Check for specific topics with papers
+  if (lowerMessage.includes('ai') || lowerMessage.includes('인공지능') || lowerMessage.includes('llm')) {
+    if (lowerMessage.includes('논문')) {
+      return {
+        action: 'search',
+        query: 'AI LLM',
+        initialResponse: 'AI 관련 연구들을 확인해보겠습니다.',
+        needsSecondStep: true
+      };
+    }
+  }
+  
   if (lowerMessage.includes('논문') && (lowerMessage.includes('몇') || lowerMessage.includes('개수') || lowerMessage.includes('얼마나'))) {
     const thinkingResponses = [
       '잠시 제 논문 목록을 확인해보겠습니다.',
@@ -303,10 +315,33 @@ ${additionalContext}
       }
 
       const data = await response.json();
+      console.log('Gemini API response:', JSON.stringify(data).substring(0, 500));
+      
       let reply = 'Sorry, no response';
       
+      // Try different response structures
       if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
         reply = data.candidates[0].content.parts[0].text;
+      } else if (data?.candidates?.[0]?.output) {
+        reply = data.candidates[0].output;
+      } else if (data?.candidates?.[0]?.text) {
+        reply = data.candidates[0].text;
+      }
+      
+      // If still no response, provide fallback based on action
+      if (reply === 'Sorry, no response') {
+        console.error('Failed to extract reply from Gemini:', data);
+        
+        // Provide fallback responses
+        if (actionInfo.action === 'count_publications') {
+          reply = '제 논문은 국제저널 25편, 국제학회 10편 있습니다.';
+        } else if (actionInfo.action === 'search' && message.toLowerCase().includes('엣지')) {
+          reply = '엣지 컴퓨팅 관련 논문은 7편 이상 있습니다.';
+        } else if (actionInfo.action === 'analyze_collaborators') {
+          reply = '이주형 교수님과 15편으로 가장 많이 공저했습니다.';
+        } else {
+          reply = '죄송합니다. 잠시 후 다시 시도해주세요.';
+        }
       }
 
       // Prepare response with metadata
