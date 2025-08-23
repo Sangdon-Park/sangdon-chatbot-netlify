@@ -310,15 +310,25 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             results.push(...papers.map(p => `${p.title} (${p.journal}, ${p.role})`));
             searchResults = `${year}년 논문 (${results.length}편):\n${results.join('\n')}`;
           }
-          // Search posts/articles/projects
+          // Search posts/articles/projects with keyword filtering
           else if (queryLower.includes('포스트') || queryLower.includes('블로그') || queryLower.includes('글') || queryLower.includes('아티클')) {
-            const articles = POSTS_DATABASE.filter(p => p.type === 'article');
-            results.push(...articles.map(p => p.title));
-            searchResults = `작성한 글/포스트 (${articles.length}개):\n${results.join('\n')}`;
-          } else if (queryLower.includes('프로젝트')) {
-            const projects = POSTS_DATABASE.filter(p => p.type === 'project');
-            results.push(...projects.map(p => `${p.title} - ${p.description}`));
-            searchResults = `진행한 프로젝트 (${projects.length}개):\n${results.join('\n')}`;
+            let posts = POSTS_DATABASE.filter(p => p.type === 'article' || p.type === 'project');
+            
+            // Apply keyword filter if present
+            if (queryLower.includes('ai') || queryLower.includes('llm')) {
+              posts = posts.filter(p => p.keywords.some(k => k.toLowerCase().includes('ai') || k.toLowerCase().includes('llm')));
+              results.push(...posts.map(p => p.title));
+              searchResults = `AI 관련 포스트/프로젝트 (${posts.length}개):\n${results.join('\n')}`;
+            } else if (queryLower.includes('프로젝트')) {
+              posts = posts.filter(p => p.type === 'project');
+              results.push(...posts.map(p => `${p.title} - ${p.description}`));
+              searchResults = `진행한 프로젝트 (${posts.length}개):\n${results.join('\n')}`;
+            } else {
+              // All articles
+              posts = posts.filter(p => p.type === 'article');
+              results.push(...posts.map(p => p.title));
+              searchResults = `작성한 글/포스트 (${posts.length}개):\n${results.join('\n')}`;
+            }
           }
           // Count all posts
           else if ((queryLower.includes('포스트') || queryLower.includes('글')) && (queryLower.includes('몇') || queryLower.includes('개수'))) {
