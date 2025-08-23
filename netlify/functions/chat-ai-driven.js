@@ -4,16 +4,34 @@ const { createClient } = require('@supabase/supabase-js');
 // Site content database for AI to search
 const KNOWLEDGE_BASE = {
   publications: {
-    journals: [
-      "Real-Time Dynamic Pricing for Edge Computing Services (IEEE Access 2024)",
-      "Dynamic Bandwidth Slicing in PON for Federated Learning (Sensors 2024)",
-      "Differential Pricing-Based Task Offloading (IEEE IoT Journal 2022)",
-      "Three Dynamic Pricing Schemes for Edge Computing (IEEE IoT Journal 2020)",
-      "Competitive Data Trading Model With Privacy Valuation (IEEE IoT Journal 2020)",
-      "Power Efficient Clustering for 5G Mobile Edge Computing (Mobile Networks 2019)",
-      "Optimal Pricing for Energy-Efficient MEC Offloading (IEEE Comm Letters 2018)",
-      // ... 총 25편
-    ],
+    all_papers: {
+      'edge_computing': [
+        "Real-Time Dynamic Pricing for Edge Computing Services (IEEE Access 2024, 1저자)",
+        "Three Dynamic Pricing Schemes for Edge Computing (IEEE IoT Journal 2020, 교신)",
+        "Power Efficient Clustering for 5G Mobile Edge Computing (Mobile Networks 2019, 교신)",
+        "Optimal Pricing for Energy-Efficient MEC Offloading (IEEE Comm Letters 2018, 교신)",
+        "Competitive Partial Computation Offloading (IEEE Access 2018, 교신)",
+        "Edge Computing GUI Simulator 프로젝트 (2024)"
+      ],
+      'iot': [
+        "Differential Pricing-Based Task Offloading for IoT (IEEE IoT Journal 2022, 교신)",
+        "Joint Subcarrier and Transmission Power in WPT System (IEEE IoT Journal 2022, 교신)",
+        "Multivariate-Time-Series-Prediction for IoT (IEEE IoT Journal 2022, 교신)",
+        "Competitive Data Trading Model With Privacy Valuation (IEEE IoT Journal 2020, 교신)",
+        "Personal Data Trading Scheme for IoT Data Marketplaces (IEEE Access 2019, 교신)"
+      ],
+      'energy': [
+        "Contribution-Based Energy-Trading in Microgrids (IEEE TIE 2016, 1저자, IEEE ITeN 선정)",
+        "Event-Driven Energy Trading System in Microgrids (IEEE Access 2017, 1저자)",
+        "Time Series Forecasting Based Energy Trading (IEEE Access 2020, 교신)",
+        "Battery-Wear-Model-Based Energy Trading in EVs (IEEE TII 2019, 교신)"
+      ],
+      'ai_ml': [
+        "Resilient Linear Classification: Attack on Training Data (ACM/IEEE ICCPS 2017, 1저자)",
+        "Learning-Based Adaptive Imputation Method With kNN (Energies 2017, 교신)",
+        "Load Profile Extraction by Mean-Shift Clustering (Energies 2018, 교신)"
+      ]
+    },
     stats: "총 25편 국제저널 (1저자 4편, 교신저자 13편), 10편 국제학회",
     collaborators: "이주형(15편), 최준균(14편), 오현택(4편), 황강욱(4편)"
   },
@@ -140,20 +158,16 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // Execute the action
         if (action === 'SEARCH_PAPERS' || action === 'COUNT_PAPERS') {
-          if (query.toLowerCase().includes('엣지') || query.toLowerCase().includes('edge')) {
-            searchResults = `
-엣지 컴퓨팅 관련 논문 (7편 이상):
-- Real-Time Dynamic Pricing for Edge Computing Services (IEEE Access 2024)
-- Three Dynamic Pricing Schemes for Edge Computing (IEEE IoT Journal 2020)  
-- Power Efficient Clustering for 5G Mobile Edge Computing (2019)
-- Optimal Pricing for Energy-Efficient MEC Offloading (2018)
-외 다수`;
-          } else if (query.toLowerCase().includes('ai') || query.toLowerCase().includes('llm')) {
-            searchResults = `
-AI/LLM 관련 연구는 주로 프로젝트와 블로그에 있습니다:
-- AI 캐릭터 대화 시스템 프로젝트
-- "AI LLM에 미쳐있던 8개월" 블로그 글
-- 논문은 주로 IoT, 엣지 컴퓨팅, 에너지 거래 분야`;
+          const queryLower = query.toLowerCase();
+          
+          if (queryLower.includes('엣지') || queryLower.includes('edge')) {
+            searchResults = `엣지 컴퓨팅 관련 논문 (6편):\n${KNOWLEDGE_BASE.publications.all_papers.edge_computing.join('\n')}`;
+          } else if (queryLower.includes('ai') || queryLower.includes('ml') || queryLower.includes('machine') || queryLower.includes('learning')) {
+            searchResults = `AI/머신러닝 관련 논문 (3편):\n${KNOWLEDGE_BASE.publications.all_papers.ai_ml.join('\n')}\n\nAI 관련 프로젝트:\n- AI 캐릭터 대화 시스템 (Gemini API 활용)\n- Edge Computing GUI Simulator (AI o1-preview 활용 개발)`;
+          } else if (queryLower.includes('iot')) {
+            searchResults = `IoT 관련 논문 (5편):\n${KNOWLEDGE_BASE.publications.all_papers.iot.join('\n')}`;
+          } else if (queryLower.includes('energy') || queryLower.includes('에너지')) {
+            searchResults = `에너지 거래 관련 논문 (4편):\n${KNOWLEDGE_BASE.publications.all_papers.energy.join('\n')}`;
           } else {
             searchResults = KNOWLEDGE_BASE.publications.stats;
           }
@@ -166,14 +180,17 @@ AI/LLM 관련 연구는 주로 프로젝트와 블로그에 있습니다:
         }
 
         // Generate final response with context
-        const finalPrompt = `당신은 박상돈 본인입니다. 방금 ${action} 작업을 완료했습니다.
+        const finalPrompt = `당신은 박상돈 본인입니다. 실제 사람처럼 자연스럽게 대화하세요.
 
-검색/분석 결과:
+사용자가 물어본 것: ${message}
+
+내가 확인한 정보:
 ${searchResults}
 
-이제 사용자 질문에 자연스럽게 답변하세요. 짧고 간결하게 1-2문장으로.
-
-원래 질문: ${message}`;
+위 정보를 바탕으로 사용자 질문에 정확하고 자연스럽게 답변하세요.
+- 논문이 없으면 "제 논문은 주로 IoT, 엣지 컴퓨팅, 에너지 분야입니다" 같이 답변
+- 있으면 구체적으로 언급
+- 1-2문장으로 간결하게`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
