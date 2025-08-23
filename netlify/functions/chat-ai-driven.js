@@ -372,6 +372,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         // If user asked for counts, compute deterministically from data (no hardcoding)
         const lowerMsg = (message || '').toLowerCase();
         const countIntent = /몇|개수|얼마나|how many/.test(lowerMsg) || /몇|개수|얼마나|how many/.test((query || '').toLowerCase());
+        // Detect collaborator intent (누구와 가장 많이 같이 썼는지 등)
+        const collaboratorIntent = /(공저|공동연구|같이|함께|coauthor|collaborator|누구)/.test(lowerMsg);
         let deterministicReply = null;
         if (countIntent) {
           const effectiveQuery = (query && query.trim()) ? query : message;
@@ -380,6 +382,43 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           // If we found nothing but intent exists, fall back to total count
           if (matchedPapers.length === 0) {
             deterministicReply = `전체 국제저널 기준으로 ${PAPERS_DATABASE.length}편입니다.`;
+          }
+        } else if (collaboratorIntent) {
+          // Tally collaborators from dataset authors
+          const counts = new Map();
+          for (const p of PAPERS_DATABASE) {
+            const authors = Array.isArray(p.authors) ? p.authors : [];
+            if (authors.length === 0) continue;
+            const hasOwner = authors.some(a => (a || '').includes('박상돈') || (a || '').toLowerCase().includes('sangdon park'));
+            if (!hasOwner) continue;
+            for (const a of authors) {
+              const name = (a || '').trim();
+              if (!name || name === '박상돈' || name.toLowerCase() === 'sangdon park') continue;
+              counts.set(name, (counts.get(name) || 0) + 1);
+            }
+          }
+          const sorted = Array.from(counts.entries()).sort((a,b) => b[1]-a[1]);
+          if (sorted.length > 0) {
+            const [topName, topCount] = sorted[0];
+            deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${topName}님으로, ${topCount}편입니다.`;
+            // Also enrich search results list with top 3 collaborators
+            const tops = sorted.slice(0, 3).map(([n,c]) => `${n}: ${c}편`);
+            if (!searchResults) searchResults = [];
+            searchResults = [...tops, ...(Array.isArray(searchResults) ? searchResults : [])];
+          } else {
+            // Fallback: use knowledge base collaborator stats if available
+            const kbCollab = (KNOWLEDGE_BASE?.publications?.by_collaborator) || {};
+            const kbCounts = Object.entries(kbCollab).map(([name, arr]) => [name, Array.isArray(arr) ? arr.length : 0]);
+            kbCounts.sort((a,b) => b[1]-a[1]);
+            if (kbCounts.length > 0 && kbCounts[0][1] > 0) {
+              const [kbTopName, kbTopCount] = kbCounts[0];
+              deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${kbTopName}님으로, 약 ${kbTopCount}편입니다.`;
+              const tops = kbCounts.slice(0, 3).map(([n,c]) => `${n}: ${c}편`);
+              if (!searchResults) searchResults = [];
+              searchResults = [...tops, ...(Array.isArray(searchResults) ? searchResults : [])];
+            } else {
+              deterministicReply = '공동저자 정보를 확인할 수 없습니다.';
+            }
           }
         }
 
