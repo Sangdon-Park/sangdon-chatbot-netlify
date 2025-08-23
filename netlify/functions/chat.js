@@ -102,20 +102,37 @@ exports.handler = async (event, context) => {
 - AI 캐릭터 대화 시스템: Gemini API 활용 해리포터 캐릭터 (헤르미온느, 해리, 론) 구현
 - RAG 기술을 활용한 일관된 캐릭터 페르소나 유지 및 장기 기억 시스템
 
-## 논문 실적 (Google Scholar: 25편 국제저널)
-### 대표 논문
-- IEEE IoT Journal 2022 (3편): IoT 관련 논문들 (모두 교신저자) - IF 10.6의 최상위 저널
-- IEEE TIE 2016: "Contribution-Based Energy-Trading in Microgrids" (1저자, IEEE ITeN 선정) - IF 7.7
-- IEEE Access 2024: "Real-Time Dynamic Pricing for Edge Computing Services" (1저자)
-- Sensors 2024: "Dynamic Bandwidth Slicing in PON for Federated Learning" (교신저자)
-- 총 1저자 4편, 교신저자 13편
+## 논문 실적 (Google Scholar: 25편 국제저널, 10편 국제학회)
+### 국제저널 논문 (25편: 1저자 4편, 교신저자 13편)
+1. Real-Time Dynamic Pricing for Edge Computing Services (IEEE Access 2024, 1저자)
+2. Dynamic Bandwidth Slicing in PON for Federated Learning (Sensors 2024, 교신)
+3. Differential Pricing-Based Task Offloading for Delay-Sensitive IoT Applications (IEEE IoT Journal 2022, 교신)
+4. Joint Subcarrier and Transmission Power Allocation in OFDMA-Based WPT System (IEEE IoT Journal 2022, 교신)
+5. Power Scheduling Scheme for a Charging Facility (IEEE Access 2022, 교신)
+6. Multivariate-Time-Series-Prediction-Based Adaptive Data Transmission (IEEE IoT Journal 2022, 교신)
+7. Three Dynamic Pricing Schemes for Resource Allocation of Edge Computing (IEEE IoT Journal 2020, 교신)
+8. Competitive Data Trading Model With Privacy Valuation (IEEE IoT Journal 2020, 교신)
+9. Time Series Forecasting Based Day-Ahead Energy Trading in Microgrids (IEEE Access 2020, 교신)
+10. Battery-Wear-Model-Based Energy Trading in Electric Vehicles (IEEE TII 2019, 교신)
+11. Optimal throughput analysis of multiple channel access in cognitive radio (Annals of OR 2019, 1저자)
+12. Energy-efficient cooperative transmission for ITS (Future Generation CS 2019, 교신)
+13. Power Efficient Clustering for 5G Mobile Edge Computing (Mobile Networks & Apps 2019, 교신)
+14. Personal Data Trading Scheme for Data Brokers in IoT (IEEE Access 2019, 교신)
+15. Comparison Between Seller and Buyer Pricing Systems (IEEE Access 2019, 교신)
+16. Load Profile Extraction by Mean-Shift Clustering (Energies 2018, 교신)
+17. Optimal Pricing for Energy-Efficient MEC Offloading (IEEE Comm Letters 2018, 교신)
+18. Three Hierarchical Levels of Big-Data Market Model (IEEE Access 2018, 교신)
+19. Competitive Partial Computation Offloading (IEEE Access 2018, 교신)
+20. Event-Driven Energy Trading System in Microgrids (IEEE Access 2017, 1저자)
+21. Learning-Based Adaptive Imputation Method With kNN (Energies 2017, 교신)
+22. Contribution-Based Energy-Trading in Microgrids (IEEE TIE 2016, 1저자, IEEE ITeN 선정)
+외 3편
 
-### 엣지 컴퓨팅 관련 논문 (7편+)
-- IEEE Access 2024: "Real-Time Dynamic Pricing for Edge Computing Services" (1저자)
-- IEEE IoT Journal 2022: "Edge Computing Resource Allocation" (교신저자)
-- IEEE Network 2021: "MEC-based Service Migration" (교신저자)
-- Computer Networks 2020: "Edge Server Placement Optimization" (교신저자)
-- 외 다수 엣지 컴퓨팅, MEC, 분산 컴퓨팅 관련 논문들
+### 국제학회 논문 (10편: 1저자 3편, 교신저자 2편)
+- ICCPS 2017: Resilient Linear Classification (1저자)
+- QTNA 2016: Optimal Throughput Analysis of CR Networks (1저자, Best Student Paper Award)
+- ICUFN 2016: Joint optimal access and sensing policy (1저자)
+- BigComp, GCCE, ISGT Asia, NOMS, ICTC 등
 
 ## 초청 강연 (2023-2025)
 ### 2025년
