@@ -144,6 +144,34 @@ const KEYWORD_SYNONYMS = {
   character: ['character', '캐릭터', 'npc', 'conversation', '대화', '대화 시스템']
 };
 
+// --- Author aliases (lowercase) to canonical name ---
+const AUTHOR_ALIASES = {
+  '박상돈': ['박상돈','sangdon park','park, sangdon','park sangdon','sd park','park sd'],
+  '최준균': ['최준균','jun kyun choi','choi, jun kyun','jun-kyun choi','jk choi','j. k. choi'],
+  '이주형': ['이주형','joohyung lee','lee, joohyung','joo hyung lee','joohyun lee'],
+  '황강욱': ['황강욱','ganguk hwang','hwang, ganguk'],
+  '오현택': ['오현택','hyeontaek oh','oh, hyeontaek','hyeon taek oh'],
+  '배소희': ['배소희','sohee bae','bae, sohee'],
+  '성영철': ['성영철','youngchul sung','sung, youngchul','young chul sung'],
+  '이규명': ['규명 이','gyu myoung lee','lee, gyu myoung','gyu-myoung lee'],
+  '김장겸': ['장겸 김','jangkyum kim','kim, jangkyum'],
+  '한재섭': ['jaeseob han','han, jaeseob','재섭 한']
+};
+
+const AUTHOR_CANONICAL_MAP = (() => {
+  const m = new Map();
+  for (const [canon, vars] of Object.entries(AUTHOR_ALIASES)) {
+    m.set(canon.toLowerCase(), canon);
+    for (const v of vars) m.set(v.toLowerCase(), canon);
+  }
+  return m;
+})();
+
+function canonicalizeAuthor(name) {
+  const key = (name || '').trim().toLowerCase();
+  return AUTHOR_CANONICAL_MAP.get(key) || (name || '').trim();
+}
+
 // Build inverted index: token -> canonical keys
 const TOKEN_TO_CANONICAL = (() => {
   const map = new Map();
@@ -419,7 +447,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           for (const p of PAPERS_DATABASE) {
             const authors = Array.isArray(p.authors) ? p.authors : [];
             for (const a of authors) {
-              const n = (a || '').trim();
+              const n = canonicalizeAuthor(a);
               if (!n) continue;
               const ln = n.toLowerCase();
               if (ln === 'sangdon park' || n === '박상돈') continue;
@@ -449,10 +477,10 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           for (const p of PAPERS_DATABASE) {
             const authors = Array.isArray(p.authors) ? p.authors : [];
             if (authors.length === 0) continue;
-            const hasOwner = authors.some(a => ownerAliases.has((a || '').trim().toLowerCase()));
+            const hasOwner = authors.some(a => ownerAliases.has(canonicalizeAuthor(a).toLowerCase()));
             if (!hasOwner) continue;
             const coauthors = authors
-              .map(a => (a || '').trim())
+              .map(a => canonicalizeAuthor(a))
               .filter(a => a && !ownerAliases.has(a.toLowerCase()));
             for (const a of coauthors) counts.set(a, (counts.get(a) || 0) + 1);
           }
@@ -472,7 +500,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           let list = [];
           if (topName) {
             list = PAPERS_DATABASE.filter(p => {
-              const authors = Array.isArray(p.authors) ? p.authors.map(a => (a||'').trim().toLowerCase()) : [];
+              const authors = Array.isArray(p.authors) ? p.authors.map(a => canonicalizeAuthor(a).toLowerCase()) : [];
               return authors.includes(topName.toLowerCase()) && authors.some(a => a === '박상돈' || a === 'sangdon park');
             }).map(p => `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`);
           }
@@ -504,7 +532,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
               // temp.list is for topName; we need counts map again, so quickly tally
               const tally = new Map();
               for (const p of PAPERS_DATABASE) {
-                const authors = Array.isArray(p.authors) ? p.authors.map(a => (a||'').trim().toLowerCase()) : [];
+                const authors = Array.isArray(p.authors) ? p.authors.map(a => canonicalizeAuthor(a).toLowerCase()) : [];
                 if (!authors.includes('sangdon park') && !authors.includes('박상돈')) continue;
                 for (const a of authors) {
                   if (a === 'sangdon park' || a === '박상돈') continue;
