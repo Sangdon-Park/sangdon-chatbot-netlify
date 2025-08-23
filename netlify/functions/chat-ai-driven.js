@@ -32,6 +32,53 @@ const KNOWLEDGE_BASE = {
         "Load Profile Extraction by Mean-Shift Clustering (Energies 2018, 교신)"
       ]
     },
+    by_collaborator: {
+      '이주형': [
+        "Contribution-Based Energy-Trading in Microgrids (IEEE TIE 2016, 1저자, IEEE ITeN 선정)",
+        "Event-Driven Energy Trading System in Microgrids (IEEE Access 2017, 1저자)",
+        "Three Dynamic Pricing Schemes for Edge Computing (IEEE IoT Journal 2020, 교신)",
+        "Battery-Wear-Model-Based Energy Trading in EVs (IEEE TII 2019, 교신)",
+        "Power Efficient Clustering for 5G Mobile Edge Computing (Mobile Networks 2019, 교신)",
+        "Learning-Based Adaptive Imputation Method With kNN (Energies 2017, 교신)",
+        "Load Profile Extraction by Mean-Shift Clustering (Energies 2018, 교신)",
+        "Competitive Partial Computation Offloading (IEEE Access 2018, 교신)",
+        "Three Hierarchical Levels of Big-Data Market Model (IEEE Access 2018, 교신)",
+        "Personal Data Trading Scheme for IoT Data Marketplaces (IEEE Access 2019, 교신)",
+        "Three Dynamic Pricing Schemes for Resource Allocation (IEEE IoT Journal 2020, 교신)",
+        "On-device AI-based Cognitive Detection of Bio-modality Spoofing (IEEE IoT Journal 2020, 교신)",
+        "Energy Independence of Energy Trading System (ISGT Asia 2017)",
+        "Energy-efficient sleep scheme for WLAN (NOMS 2016)",
+        "Energy efficient relay selection scheme (ICTC 2013)"
+      ],
+      '최준균': [
+        "Real-Time Dynamic Pricing for Edge Computing Services (IEEE Access 2024, 1저자)",
+        "Contribution-Based Energy-Trading in Microgrids (IEEE TIE 2016, 1저자, IEEE ITeN 선정)",
+        "Event-Driven Energy Trading System in Microgrids (IEEE Access 2017, 1저자)",
+        "Optimal throughput analysis of CR networks (Annals of OR 2019, 1저자)",
+        "Differential Pricing-Based Task Offloading for IoT (IEEE IoT Journal 2022, 교신)",
+        "Joint Subcarrier and Transmission Power in WPT System (IEEE IoT Journal 2022, 교신)",
+        "Multivariate-Time-Series-Prediction for IoT (IEEE IoT Journal 2022, 교신)",
+        "Competitive Data Trading Model With Privacy Valuation (IEEE IoT Journal 2020, 교신)",
+        "Battery-Wear-Model-Based Energy Trading in EVs (IEEE TII 2019, 교신)",
+        "Three Dynamic Pricing Schemes for Edge Computing (IEEE IoT Journal 2020, 교신)",
+        "Learning-Based Adaptive Imputation Method With kNN (Energies 2017, 교신)",
+        "Competitive Partial Computation Offloading (IEEE Access 2018, 교신)",
+        "Joint optimal access and sensing policy (ICUFN 2016)",
+        "Optimal Throughput Analysis of Random Access Policies (QTNA 2016, Best Paper Award)"
+      ],
+      '황강욱': [
+        "Contribution-Based Energy-Trading in Microgrids (IEEE TIE 2016, 1저자, IEEE ITeN 선정)",
+        "Event-Driven Energy Trading System in Microgrids (IEEE Access 2017, 1저자)",
+        "Time Series Forecasting Based Energy Trading (IEEE Access 2020, 교신)",
+        "Optimal throughput analysis of CR networks (Annals of OR 2019, 1저자)"
+      ],
+      '오현택': [
+        "Differential Pricing-Based Task Offloading for IoT (IEEE IoT Journal 2022, 교신)",
+        "Competitive Data Trading Model With Privacy Valuation (IEEE IoT Journal 2020, 교신)",
+        "Personal Data Trading Scheme for IoT Data Marketplaces (IEEE Access 2019, 교신)",
+        "Energy-efficient sleep scheme for WLAN (NOMS 2016)"
+      ]
+    },
     stats: "총 25편 국제저널 (1저자 4편, 교신저자 13편), 10편 국제학회",
     collaborators: "이주형(15편), 최준균(14편), 오현택(4편), 황강욱(4편)"
   },
@@ -87,12 +134,14 @@ exports.handler = async (event, context) => {
 - SEARCH_PAPERS: 논문 관련 질문 (논문 찾기, 특정 주제 논문)
 - COUNT_PAPERS: 논문 개수 질문 (몇 편, 얼마나)
 - ANALYZE_COLLABORATORS: 공동연구자 질문 (누구와, 같이)
+- SEARCH_COLLABORATOR_PAPERS: 특정 공동연구자와의 논문 리스트
 - SEARCH_ARTICLES: 블로그/글 관련
 - SEARCH_PROJECTS: 프로젝트 관련
 - CHAT: 인사, 일반 대화, 위에 해당 안 되는 것
 
 예시:
 Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH_PAPERS, QUERY: AI
+Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH_COLLABORATOR_PAPERS, QUERY: 황강욱
 Q: "논문 몇 편?" → ACTION: COUNT_PAPERS
 Q: "안녕하세요" → ACTION: CHAT
 
@@ -173,6 +222,25 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
         } else if (action === 'ANALYZE_COLLABORATORS') {
           searchResults = KNOWLEDGE_BASE.publications.collaborators;
+        } else if (action === 'SEARCH_COLLABORATOR_PAPERS') {
+          const queryLower = query.toLowerCase();
+          
+          if (queryLower.includes('황강욱') || queryLower.includes('hwang') || queryLower.includes('ganguk')) {
+            const papers = KNOWLEDGE_BASE.publications.by_collaborator['황강욱'];
+            searchResults = `황강욱 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
+          } else if (queryLower.includes('이주형') || queryLower.includes('joohyung') || queryLower.includes('lee')) {
+            const papers = KNOWLEDGE_BASE.publications.by_collaborator['이주형'];
+            searchResults = `이주형 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
+          } else if (queryLower.includes('최준균') || queryLower.includes('jun kyun') || queryLower.includes('choi')) {
+            const papers = KNOWLEDGE_BASE.publications.by_collaborator['최준균'];
+            searchResults = `최준균 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
+          } else if (queryLower.includes('오현택') || queryLower.includes('hyeontaek') || queryLower.includes('oh')) {
+            const papers = KNOWLEDGE_BASE.publications.by_collaborator['오현택'];
+            searchResults = `오현택 교수님과 함께 작성한 논문 (${papers.length}편):\n${papers.join('\n')}`;
+          } else {
+            // 모든 공동연구자 정보 제공
+            searchResults = `주요 공동연구자:\n${KNOWLEDGE_BASE.publications.collaborators}\n\n특정 교수님과의 논문을 원하시면 이름을 말씀해주세요.`;
+          }
         } else if (action === 'SEARCH_ARTICLES') {
           searchResults = KNOWLEDGE_BASE.articles.join('\n');
         } else if (action === 'SEARCH_PROJECTS') {
@@ -188,9 +256,10 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
 ${searchResults}
 
 위 정보를 바탕으로 사용자 질문에 정확하고 자연스럽게 답변하세요.
-- 논문이 없으면 "제 논문은 주로 IoT, 엣지 컴퓨팅, 에너지 분야입니다" 같이 답변
-- 있으면 구체적으로 언급
-- 1-2문장으로 간결하게`;
+- 정보가 있으면 구체적으로 언급 (예: "네, 황강욱 교수님과는 에너지 트레이딩과 인지 무선 네트워크 관련 논문 4편을 함께 썼습니다")
+- 리스트가 길면 주요 논문 2-3개만 간단히 언급
+- 1-2문장으로 간결하게, 존댓말 사용
+- 자연스러운 대화체로 응답`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
