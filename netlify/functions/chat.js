@@ -34,7 +34,7 @@ exports.handler = async (event, context) => {
   // Handle POST request
   if (event.httpMethod === 'POST') {
     try {
-      const { message } = JSON.parse(event.body);
+      const { message, history = [] } = JSON.parse(event.body);
 
       if (!message) {
         return {
@@ -156,7 +156,10 @@ exports.handler = async (event, context) => {
 - 구체적인 프로젝트, 논문, 강연 경험을 바탕으로 답변
 - 세이베리게임즈에서 AI 게임 개발에 열정적으로 일하고 있음 강조
 
-질문: ${message}`;
+## 이전 대화 내용
+${history.length > 0 ? history.map(h => `${h.role === 'user' ? '방문자' : '박상돈'}: ${h.content}`).join('\n') : '(첫 대화)'}
+
+현재 질문: ${message}`;
 
       // Call Gemini API (Gemini 2.5 Flash)
       const response = await fetch(
