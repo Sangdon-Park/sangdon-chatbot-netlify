@@ -129,6 +129,54 @@ const KNOWLEDGE_BASE = {
   posts: POSTS_DATABASE  // Use the unified database
 };
 
+// Simple relevance scoring search across local databases
+function simpleSearch(query, papers, posts, maxResults = 5) {
+  if (!query || typeof query !== 'string') return [];
+
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9가-힣]+/)
+    .filter(Boolean);
+
+  const scored = [];
+
+  // Search papers
+  for (const p of papers) {
+    const hay = [
+      p.title || '',
+      p.journal || '',
+      String(p.year || ''),
+      ...(p.authors || []),
+      ...(p.keywords || [])
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    let score = 0;
+    for (const t of tokens) if (hay.includes(t)) score += 1;
+    if (score > 0) {
+      const label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
+      scored.push({ label, score });
+    }
+  }
+
+  // Search posts/projects/articles
+  for (const a of posts) {
+    const hay = [a.title || '', a.description || '', ...(a.keywords || [])]
+      .join(' ')
+      .toLowerCase();
+    let score = 0;
+    for (const t of tokens) if (hay.includes(t)) score += 1;
+    if (score > 0) {
+      const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
+      scored.push({ label, score });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, maxResults).map(s => s.label);
+}
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -233,44 +281,31 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
       // STEP 2: Execute action and generate final response
       else if (step === 2) {
         const { action, query } = JSON.parse(event.body);
-        
-        let searchResults = '';
-        
-        // Execute intelligent search - let AI handle the search
+
+        // Perform lightweight RAG over local KB
+        let searchResults = null;
         if (action === 'SEARCH') {
-          // Combine all data for AI to search through
-          const allData = {
-            papers: PAPERS_DATABASE,
-            posts: POSTS_DATABASE,
-            stats: {
-              totalPapers: PAPERS_DATABASE.length,
-              firstAuthor: PAPERS_DATABASE.filter(p => p.role === '1저자').length,
-              corresponding: PAPERS_DATABASE.filter(p => p.role === '교신').length,
-              articles: POSTS_DATABASE.filter(p => p.type === 'article').length,
-              projects: POSTS_DATABASE.filter(p => p.type === 'project').length
-            }
-          };
-          
-          // Convert to searchable text format for AI
-          searchResults = JSON.stringify(allData);
+          // Build a flat posts array from POSTS_DATABASE
+          const postsFlat = POSTS_DATABASE.map(p => ({
+            title: p.title,
+            description: p.description || '',
+            keywords: p.keywords || [],
+            year: p.year || ''
+          }));
+          searchResults = simpleSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
         }
 
         // Generate final response with context
-        const finalPrompt = `당신은 박상돈 본인입니다. 아래 JSON 데이터를 분석해서 사용자 질문에 답변하세요.
+        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약을 바탕으로 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
 
-데이터:
-${searchResults}
+검색 요약:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
-### 절대 규칙 ###
-1. JSON을 그대로 출력하면 안됩니다!
-2. 데이터를 분석해서 한국어로 답변하세요.
-3. 답변 예시:
-   - "엣지컴퓨팅 논문 몇 편?" → "엣지 컴퓨팅 관련 논문을 6편 작성했습니다."
-   - "가장 많이 쓴 사람?" → "최준균 교수님과 10편, 이주형 교수님과 9편 함께 썼습니다."
-
-답변 형식: 자연스러운 한국어 1-2문장으로만 답변. JSON 출력 금지!`;
+규칙:
+1) 검색 요약을 그대로 복사하지 말고, 1~2문장 한국어로 함축 답변
+2) 숫자/통계를 묻는 경우 간결히 수치만 제시
+3) 불확실하면 과장 없이 보수적으로 답변`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -337,7 +372,8 @@ ${searchResults}
           body: JSON.stringify({
             step: 2,
             reply,
-            searchResults: searchResults ? searchResults.split('\n').filter(s => s.trim()).slice(0, 3) : null
+            // Return array of human-readable strings for frontend rendering
+            searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 5) : null
           })
         };
       }
