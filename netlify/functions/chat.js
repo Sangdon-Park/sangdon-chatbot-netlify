@@ -177,7 +177,7 @@ ${history.length > 0 ? history.map(h => `${h.role === 'user' ? '방문자' : '�
             }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 800,
+              maxOutputTokens: 8192,
               candidateCount: 1,
               topK: 40,
               topP: 0.95
