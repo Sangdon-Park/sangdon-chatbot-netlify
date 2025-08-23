@@ -256,30 +256,21 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         // Generate final response with context
-        const finalPrompt = `당신은 박상돈 본인입니다. 사용자 질문에 대해 제공된 데이터에서 정보를 찾아 답변하세요.
+        const finalPrompt = `당신은 박상돈 본인입니다. 아래 JSON 데이터를 분석해서 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
 
-데이터베이스 정보:
+데이터:
 ${searchResults}
 
-중요: JSON 데이터를 그대로 보여주지 마세요! 데이터를 분석해서 자연스러운 한국어로 답변하세요.
+### 절대 규칙 ###
+1. JSON을 그대로 출력하면 안됩니다!
+2. 데이터를 분석해서 한국어로 답변하세요.
+3. 답변 예시:
+   - "엣지컴퓨팅 논문 몇 편?" → "엣지 컴퓨팅 관련 논문을 6편 작성했습니다."
+   - "가장 많이 쓴 사람?" → "최준균 교수님과 10편, 이주형 교수님과 9편 함께 썼습니다."
 
-답변 방법:
-1. papers 배열에서 authors 필드를 분석해 공동저자 찾기
-2. 각 저자가 몇 편에 등장하는지 세기 (박상돈 제외)
-3. posts 배열에서 title/keywords로 관련 글 찾기
-
-예시:
-- "가장 많이 논문 쓴 사람?" → papers의 authors를 분석해서 최다 공동저자 찾기
-- "황강욱과 쓴 논문?" → authors에 "황강욱" 포함된 논문들 찾기
-- "serena 설치법?" → posts에서 title에 "Serena" 포함된 글 찾기
-
-답변 규칙:
-- JSON 데이터를 분석해서 답변 (절대 raw JSON 보여주지 말 것)
-- 1-2문장으로 간결하게
-- 자연스러운 한국어 존댓말
-- 정확한 정보만 제공`;
+답변 형식: 자연스러운 한국어 1-2문장으로만 답변. JSON 출력 금지!`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
