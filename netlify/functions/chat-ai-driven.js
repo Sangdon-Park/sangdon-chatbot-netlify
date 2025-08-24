@@ -259,6 +259,11 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
   return scored.slice(0, maxResults).map(s => s.label);
 }
 
+function isPublicationIntent(message, query) {
+  const text = `${message || ''} ${query || ''}`.toLowerCase();
+  return /(논문|저널|journal|publication|paper|ieee|sensors|access|transactions|iot\s*journal|tie|mdpi)/.test(text);
+}
+
 // Filter papers by free-text query tokens
 function filterPapersByQuery(query, papers) {
   if (!query || typeof query !== 'string') return [];
@@ -313,11 +318,15 @@ exports.handler = async (event, context) => {
 
       // STEP 1: AI decides what action to take
       if (step === 1) {
+        const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
         const actionPrompt = `당신은 박상돈 본인입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
 
 사용 가능한 행동:
 - SEARCH: 논문, 공동연구자, 주제 등 모든 검색 관련 질문
 - CHAT: 인사, 일반 대화, 검색이 필요 없는 것
+
+이전 대화(최신순):
+${recent || '(이전 대화 없음)'}
 
 예시:
 Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH, QUERY: AI 논문
@@ -428,7 +437,12 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             keywords: p.keywords || [],
             year: p.year || ''
           }));
-          searchResults = simpleSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
+          // Prioritize publications for publication intents; otherwise include posts
+          if (isPublicationIntent(message, query)) {
+            searchResults = simpleSearch(query || '', PAPERS_DATABASE, [], 8);
+          } else {
+            searchResults = simpleSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
+          }
         }
 
         // Generate final response with context
@@ -438,7 +452,12 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         // Detect collaborator intent (누구와 가장 많이 같이 썼는지 등)
         const collaboratorIntent = /(공저|공동연구|같이|함께|coauthor|collaborator|누구)/.test(lowerMsg);
         // Detect list-all intent
-        const listIntent = /(모두|전체|전부|다)\s*(나열|적어|써|목록|리스트)|나열|목록|리스트/.test(lowerMsg);
+        const listIntent = (
+          /(모두|전체|전부|다)\s*(나열|적어|써|목록|리스트|보여|열거|정리)/.test(lowerMsg)
+          || /(나열|목록|리스트|보여줘|보여봐|열거|정리|읊어|읊어봐)/.test(lowerMsg)
+          || /\d+\s*편/.test(lowerMsg)
+          || /논문\s*(전부|전체|다)/.test(lowerMsg)
+        );
 
         // Try to extract a specific collaborator name from message
         function extractCollaboratorNameFromMessage() {
@@ -575,9 +594,13 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           };
         }
 
-        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약을 바탕으로 사용자 질문에 답변하세요.
+        const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
+        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약과 이전 대화를 바탕으로 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
+
+이전 대화(최신순):
+${recent || '(이전 대화 없음)'}
 
 검색 요약:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
@@ -627,13 +650,18 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
                       event.headers['client-ip'] || 
                       'unknown';
             
+            // Standardize columns to match existing functions (chat.js/chat-rag.js)
             await supabase
               .from('chat_logs')
               .insert([
                 {
-                  message: message,
-                  response: reply,
-                  ip_address: ip,
+                  user_message: message,
+                  bot_response: reply,
+                  conversation_history: Array.isArray(history) ? history.slice(-10) : [],
+                  action_taken: action || null,
+                  search_results: Array.isArray(searchResults) ? searchResults : null,
+                  created_at: new Date().toISOString(),
+                  user_ip: ip,
                   user_agent: event.headers['user-agent'] || 'unknown'
                 }
               ]);
