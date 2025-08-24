@@ -281,11 +281,12 @@ ${history.length > 0 ? history.map(h => `${h.role === 'user' ? '방문자' : '�
             .from('chat_logs')
             .insert([
               {
-                user_message: message,
-                bot_response: reply,
-                conversation_history: history,
+                message: message,
+                response: reply,
+                conversation_history: JSON.stringify(history || []),
                 created_at: new Date().toISOString(),
-                user_ip: event.headers['x-forwarded-for'] || event.headers['client-ip'] || 'unknown'
+                ip_address: event.headers['x-forwarded-for'] || event.headers['client-ip'] || 'unknown',
+                user_agent: event.headers['user-agent'] || 'unknown'
               }
             ]);
 
