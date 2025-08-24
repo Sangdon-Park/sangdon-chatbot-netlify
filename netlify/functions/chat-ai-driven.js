@@ -425,7 +425,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
 
       // STEP 2: Execute action and generate final response
       else if (step === 2) {
-        const { action, query } = JSON.parse(event.body);
+        const { message, history = [], action, query } = JSON.parse(event.body);
 
         // Perform lightweight RAG over local KB
         let searchResults = null;
