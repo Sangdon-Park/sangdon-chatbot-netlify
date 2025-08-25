@@ -640,11 +640,17 @@ ${recent || '(이전 대화 없음)'}
         // Log to Supabase
         try {
           const supabaseUrl = process.env.SUPABASE_URL;
-          const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+          // Try both possible env var names
+          const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
           
-          console.log('Supabase Debug - URL exists:', !!supabaseUrl);
-          console.log('Supabase Debug - Key exists:', !!supabaseKey);
-          console.log('Supabase Debug - URL:', supabaseUrl?.substring(0, 30) + '...');
+          console.log('=== SUPABASE DEBUG START ===');
+          console.log('Timestamp:', new Date().toISOString());
+          console.log('Supabase URL exists:', !!supabaseUrl);
+          console.log('Supabase SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_KEY);
+          console.log('Supabase ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+          console.log('Using key:', !!supabaseKey ? 'Found' : 'Missing');
+          console.log('Supabase URL:', supabaseUrl?.substring(0, 30) + '...');
+          console.log('All env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', '));
           
           if (supabaseUrl && supabaseKey) {
             const supabase = createClient(supabaseUrl, supabaseKey);
@@ -665,22 +671,47 @@ ${recent || '(이전 대화 없음)'}
             };
             
             console.log('Supabase Debug - Inserting data:', JSON.stringify(dataToInsert).substring(0, 200));
+            console.log('Data keys:', Object.keys(dataToInsert).join(', '));
+            console.log('History length:', Array.isArray(history) ? history.length : 'not array');
+            console.log('Search results count:', Array.isArray(searchResults) ? searchResults.length : 'not array');
             
             // Match the actual Supabase table schema from chat_logs_schema.sql
             const insertResult = await supabase
               .from('chat_logs')
-              .insert([dataToInsert]);
+              .insert([dataToInsert])
+              .select(); // Add select to get the inserted row back
             
             if (insertResult.error) {
-              console.error('Supabase insert error:', JSON.stringify(insertResult.error));
-              console.error('Supabase error details:', insertResult.error.message, insertResult.error.code);
+              console.error('=== SUPABASE ERROR ===');
+              console.error('Error object:', JSON.stringify(insertResult.error));
+              console.error('Error message:', insertResult.error.message);
+              console.error('Error code:', insertResult.error.code);
+              console.error('Error hint:', insertResult.error.hint);
+              console.error('Error details:', insertResult.error.details);
+              
+              // Check specific error types
+              if (insertResult.error.code === '42501') {
+                console.error('Permission denied - check RLS policies');
+              } else if (insertResult.error.code === '23502') {
+                console.error('NOT NULL violation - missing required field');
+              } else if (insertResult.error.code === '42P01') {
+                console.error('Table does not exist - run the SQL schema');
+              }
             } else {
-              console.log('Supabase insert success:', insertResult.status, insertResult.statusText);
+              console.log('=== SUPABASE SUCCESS ===');
+              console.log('Insert status:', insertResult.status);
+              console.log('Status text:', insertResult.statusText);
+              console.log('Inserted data ID:', insertResult.data?.[0]?.id);
+              console.log('Row count:', insertResult.data?.length);
             }
             
-            console.log('Logged to Supabase - complete result:', JSON.stringify(insertResult).substring(0, 200));
+            console.log('Logged to Supabase - complete result:', JSON.stringify(insertResult).substring(0, 500));
+            console.log('=== SUPABASE DEBUG END ===');
           } else {
-            console.log('Supabase Debug - Missing credentials, skipping logging');
+            console.log('=== SUPABASE NOT CONFIGURED ===');
+            console.log('Missing URL:', !supabaseUrl);
+            console.log('Missing Key:', !supabaseKey);
+            console.log('Please set environment variables in Netlify dashboard');
           }
         } catch (logError) {
           console.error('Failed to log to Supabase - Exception:', logError);

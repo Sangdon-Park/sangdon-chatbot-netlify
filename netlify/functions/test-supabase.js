@@ -13,10 +13,16 @@ exports.handler = async (event, context) => {
   }
 
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+  // Try both possible env var names
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
+  console.log('=== TEST SUPABASE CONNECTION ===');
+  console.log('Timestamp:', new Date().toISOString());
   console.log('SUPABASE_URL exists:', !!SUPABASE_URL);
-  console.log('SUPABASE_SERVICE_KEY exists:', !!SUPABASE_SERVICE_KEY);
+  console.log('SUPABASE_SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_KEY);
+  console.log('SUPABASE_ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+  console.log('Using key:', !!SUPABASE_SERVICE_KEY ? 'Found' : 'Missing');
+  console.log('All SUPABASE env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', '));
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return {
@@ -25,7 +31,9 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ 
         error: 'Supabase not configured',
         hasUrl: !!SUPABASE_URL,
-        hasKey: !!SUPABASE_SERVICE_KEY
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+        hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+        envVars: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
       })
     };
   }
@@ -33,16 +41,18 @@ exports.handler = async (event, context) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     
-    // Test insert
+    // Test insert with all fields from the schema
     const testData = {
-      user_message: 'Test message',
-      bot_response: 'Test response',
-      conversation_history: [],
-      created_at: new Date().toISOString(),
-      user_ip: 'test-ip'
+      user_message: 'Test message from test-supabase function',
+      bot_response: 'Test response from test-supabase function',
+      conversation_history: [{role: 'user', message: 'test'}, {role: 'assistant', message: 'test response'}],
+      action_taken: 'test_action',
+      search_results: [{title: 'Test Result', type: 'test'}],
+      user_ip: event.headers['x-forwarded-for'] || 'test-ip',
+      user_agent: event.headers['user-agent'] || 'test-agent'
     };
 
-    console.log('Attempting to insert:', testData);
+    console.log('Attempting to insert:', JSON.stringify(testData));
 
     const { data, error } = await supabase
       .from('chat_logs')
@@ -50,7 +60,19 @@ exports.handler = async (event, context) => {
       .select();
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('=== SUPABASE ERROR ===');
+      console.error('Full error:', JSON.stringify(error));
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error hint:', error.hint);
+      
+      // Specific error handling
+      if (error.code === '42501') {
+        console.error('RLS Policy error - check policies');
+      } else if (error.code === '42P01') {
+        console.error('Table does not exist - run SQL schema');
+      }
+      
       return {
         statusCode: 500,
         headers,
@@ -58,7 +80,8 @@ exports.handler = async (event, context) => {
           error: 'Database error',
           details: error.message,
           code: error.code,
-          hint: error.hint
+          hint: error.hint,
+          fullError: error
         })
       };
     }
