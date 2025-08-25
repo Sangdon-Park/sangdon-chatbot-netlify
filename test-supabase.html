@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .loading {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+        .endpoint-info {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Supabase Connection Test</h1>
+        
+        <div class="endpoint-info">
+            <strong>Production Endpoint:</strong> https://sangdon-chatbot.netlify.app/.netlify/functions/
+        </div>
+
+        <div class="test-section">
+            <h2>1. Test Supabase Connection</h2>
+            <p>This tests if Supabase environment variables are configured correctly.</p>
+            <button onclick="testSupabase()">Test Supabase Connection</button>
+            <div id="supabaseResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Test Chatbot with Logging</h2>
+            <p>This sends a real message to the chatbot and logs it to Supabase.</p>
+            <input type="text" id="testMessage" placeholder="Enter test message" style="width: 300px; padding: 8px; margin-right: 10px;">
+            <button onclick="testChatbot()">Send Test Message</button>
+            <div id="chatbotResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. View Recent Logs (Admin)</h2>
+            <p>This attempts to retrieve recent chat logs from Supabase.</p>
+            <button onclick="viewLogs()">View Recent Logs</button>
+            <div id="logsResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://sangdon-chatbot.netlify.app/.netlify/functions';
+
+        async function testSupabase() {
+            const resultDiv = document.getElementById('supabaseResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing Supabase connection...';
+
+            try {
+                const response = await fetch(`${API_BASE}/test-supabase`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ SUCCESS!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ ERROR!\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error!\n\n${error.message}`;
+            }
+        }
+
+        async function testChatbot() {
+            const message = document.getElementById('testMessage').value || 'Hello, this is a test message';
+            const resultDiv = document.getElementById('chatbotResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Sending message to chatbot...';
+
+            try {
+                const response = await fetch(`${API_BASE}/chat-ai-driven`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        history: []
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Chatbot Response:\n\n${data.reply}\n\n` +
+                        `Context: ${JSON.stringify(data.context, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Error:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error!\n\n${error.message}`;
+            }
+        }
+
+        async function viewLogs() {
+            const resultDiv = document.getElementById('logsResult');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Fetching logs...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin-logs`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result info';
+                    const logs = data.logs || [];
+                    if (logs.length > 0) {
+                        const formattedLogs = logs.map(log => 
+                            `[${new Date(log.created_at).toLocaleString()}]\n` +
+                            `User: ${log.user_message}\n` +
+                            `Bot: ${log.bot_response.substring(0, 100)}...\n` +
+                            `IP: ${log.user_ip}\n` +
+                            `─────────────────`
+                        ).join('\n\n');
+                        resultDiv.textContent = `📊 Recent Logs (${logs.length} entries):\n\n${formattedLogs}`;
+                    } else {
+                        resultDiv.textContent = 'No logs found in database.';
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Error fetching logs:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error!\n\n${error.message}`;
+            }
+        }
+
+        // Test on page load
+        window.addEventListener('load', () => {
+            console.log('Test page loaded. Check browser console for additional debug info.');
+        });
+    </script>
+</body>
+</html>
