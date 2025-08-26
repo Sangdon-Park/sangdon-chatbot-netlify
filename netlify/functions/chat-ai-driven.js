@@ -55,15 +55,9 @@ const PAPERS_DATABASE = [
   { title: "Resilient Linear Classification: Attack on Training Data", journal: "ACM/IEEE ICCPS", year: 2017, role: "1저자", authors: ["박상돈"], keywords: ["machine learning", "security", "classification"] },
   
   // 2016
-  { title: "Contribution-Based Energy-Trading in Microgrids", journal: "IEEE TIE", year: 2016, role: "1저자", authors: ["박상돈", "이주형", "황강욱", "최준균"], keywords: ["microgrid", "energy trading", "game theory"], award: "IEEE ITeN 선정" },
+  { title: "Contribution-Based Energy-Trading in Microgrids", journal: "IEEE TIE", year: 2016, role: "1저자", authors: ["박상돈", "이주형", "황강욱", "최준균"], keywords: ["microgrid", "energy trading", "game theory"], award: "IEEE ITeN 선정" }
   
-  // Additional papers to reach 25
-  { title: "Deep Reinforcement Learning for Edge Computing Resource Allocation", journal: "IEEE Network", year: 2021, role: "교신", authors: ["박상돈", "김민수"], keywords: ["deep learning", "reinforcement learning", "edge computing"] },
-  { title: "Federated Learning with Blockchain for IoT Security", journal: "IEEE IoT Journal", year: 2021, role: "교신", authors: ["박상돈", "이주형", "오현택"], keywords: ["federated learning", "blockchain", "security"] },
-  { title: "Energy-Efficient Task Scheduling in Mobile Edge Computing", journal: "IEEE Access", year: 2020, role: "1저자", authors: ["박상돈"], keywords: ["task scheduling", "energy efficiency", "MEC"] },
-  { title: "Privacy-Preserving Data Analytics in Smart Cities", journal: "IEEE TII", year: 2019, role: "교신", authors: ["박상돈", "최준균", "황강욱"], keywords: ["privacy", "data analytics", "smart cities"] },
-  { title: "Dynamic Resource Allocation in Cloud-Edge Computing", journal: "IEEE Cloud Computing", year: 2018, role: "1저자", authors: ["박상돈", "이주형"], keywords: ["cloud computing", "edge computing", "resource allocation"] },
-  { title: "Machine Learning for Network Anomaly Detection", journal: "IEEE Network", year: 2017, role: "교신", authors: ["박상돈", "오현택"], keywords: ["machine learning", "anomaly detection", "network security"] }
+  // Note: Total 19 papers in database - please add actual 6 remaining papers with correct co-authors and details
 ];
 
 // Site content database for AI to search
