@@ -215,16 +215,132 @@ function computeMatchScore(tokens, hayLower) {
   return score;
 }
 
-// Simple relevance scoring search across local databases with synonyms expansion
-function simpleSearch(query, papers, posts, maxResults = 5) {
+// Embedding-based semantic search using Google's text-embedding API
+async function embeddingSearch(query, papers, posts, maxResults = 5) {
   if (!query || typeof query !== 'string') return [];
 
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY not configured for embedding search');
+    // Fallback to keyword search
+    return keywordFallbackSearch(query, papers, posts, maxResults);
+  }
+
+  try {
+    // Get query embedding
+    const queryEmbedding = await getEmbedding(query, GEMINI_API_KEY);
+    if (!queryEmbedding) {
+      console.error('Failed to get query embedding, falling back to keyword search');
+      return keywordFallbackSearch(query, papers, posts, maxResults);
+    }
+
+    const results = [];
+
+    // Process papers
+    for (const p of papers) {
+      const docText = [
+        p.title || '',
+        p.journal || '',
+        String(p.year || ''),
+        ...(p.authors || []),
+        ...(p.keywords || [])
+      ].join(' ');
+      
+      const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
+      if (docEmbedding) {
+        const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
+        if (similarity > 0.3) { // Threshold for relevance
+          const label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
+          results.push({ label, score: similarity });
+        }
+      }
+    }
+
+    // Process posts
+    for (const a of posts) {
+      const docText = [
+        a.title || '',
+        a.description || '',
+        ...(a.keywords || [])
+      ].join(' ');
+      
+      const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
+      if (docEmbedding) {
+        const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
+        if (similarity > 0.3) {
+          const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
+          results.push({ label, score: similarity });
+        }
+      }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, maxResults).map(r => r.label);
+
+  } catch (error) {
+    console.error('Embedding search error:', error);
+    return keywordFallbackSearch(query, papers, posts, maxResults);
+  }
+}
+
+// Helper function to get embedding from Google's API
+async function getEmbedding(text, apiKey) {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: {
+            parts: [{ text: text }]
+          },
+          taskType: 'RETRIEVAL_DOCUMENT'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Embedding API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.embedding.values;
+  } catch (error) {
+    console.error('Error getting embedding:', error);
+    return null;
+  }
+}
+
+// Helper function to compute cosine similarity
+function cosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+  
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  
+  if (normA === 0 || normB === 0) return 0;
+  
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// Fallback to keyword search when embedding fails
+function keywordFallbackSearch(query, papers, posts, maxResults = 5) {
   const baseTokens = tokenize(query);
   const tokens = expandTokensWithSynonyms(baseTokens);
-
   const scored = [];
 
-  // Search papers
   for (const p of papers) {
     const hay = [
       p.title || '',
@@ -232,9 +348,7 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
       String(p.year || ''),
       ...(p.authors || []),
       ...(p.keywords || [])
-    ]
-      .join(' ')
-      .toLowerCase();
+    ].join(' ').toLowerCase();
 
     const score = computeMatchScore(tokens, hay);
     if (score > 0) {
@@ -243,11 +357,8 @@ function simpleSearch(query, papers, posts, maxResults = 5) {
     }
   }
 
-  // Search posts/projects/articles
   for (const a of posts) {
-    const hay = [a.title || '', a.description || '', ...(a.keywords || [])]
-      .join(' ')
-      .toLowerCase();
+    const hay = [a.title || '', a.description || '', ...(a.keywords || [])].join(' ').toLowerCase();
     const score = computeMatchScore(tokens, hay);
     if (score > 0) {
       const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
@@ -482,9 +593,9 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }));
           // Prioritize publications for publication intents; otherwise include posts
           if (isPublicationIntent(message, query)) {
-            searchResults = simpleSearch(query || '', PAPERS_DATABASE, [], 8);
+            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 8);
           } else {
-            searchResults = simpleSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
+            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
           }
         }
 
