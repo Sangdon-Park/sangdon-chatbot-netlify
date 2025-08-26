@@ -11,16 +11,17 @@ const POSTS_DATABASE = [
   { title: "AI 캐릭터 대화 시스템", type: "project", keywords: ["AI", "character", "Gemini", "Harry Potter"], year: 2024, description: "해리포터 캐릭터 구현" }
 ];
 
-// Invited Talks and Seminars database
+// Invited Talks and Seminars database (실제 데이터 from ko.html)
 const TALKS_DATABASE = [
-  { title: "Future of Edge Computing and AI", type: "invited_talk", venue: "KAIST AI Conference", year: 2024, keywords: ["edge computing", "AI", "future"], location: "Daejeon, Korea" },
-  { title: "Energy Trading in Smart Grids", type: "seminar", venue: "Seoul National University", year: 2023, keywords: ["energy", "smart grid", "trading"], location: "Seoul, Korea" },
-  { title: "IoT Security and Privacy", type: "invited_talk", venue: "IEEE IoT Summit", year: 2023, keywords: ["IoT", "security", "privacy"], location: "Singapore" },
-  { title: "Machine Learning for Energy Systems", type: "seminar", venue: "POSTECH", year: 2022, keywords: ["machine learning", "energy", "optimization"], location: "Pohang, Korea" },
-  { title: "5G Edge Computing Architecture", type: "invited_talk", venue: "Samsung Research", year: 2022, keywords: ["5G", "edge computing", "MEC"], location: "Suwon, Korea" },
-  { title: "Federated Learning in IoT", type: "seminar", venue: "ETRI", year: 2021, keywords: ["federated learning", "IoT", "distributed"], location: "Daejeon, Korea" },
-  { title: "Blockchain for Energy Trading", type: "invited_talk", venue: "International Energy Conference", year: 2021, keywords: ["blockchain", "energy", "trading"], location: "Online" },
-  { title: "AI-Driven Network Optimization", type: "seminar", venue: "Yonsei University", year: 2020, keywords: ["AI", "network", "optimization"], location: "Seoul, Korea" }
+  { title: "AI 기술의 최신 동향과 실무 적용 사례", type: "ai_seminar", venue: "부경대학교 전자정보통신공학부", year: 2025, date: "2025년 5월 14일", keywords: ["AI", "실무", "최신 동향"], fee: 500000 },
+  { title: "AI 반도체 기술과 LLM 응용", type: "executive_course", venue: "KAIST AI반도체학과 최고경영자과정", year: 2025, date: "2025년 5월 7일", keywords: ["AI 반도체", "LLM", "executive"], fee: 500000 },
+  { title: "수학과 AI의 만남: 차세대 연구자를 위한 통찰", type: "colloquium", venue: "한국과학영재학교 (KAIST 부설)", year: 2025, date: "2025년 4월 30일", keywords: ["수학", "AI", "영재교육"], fee: 500000 },
+  { title: "LLM 기반 시스템 설계와 구현", type: "ai_seminar", venue: "경북대학교", year: 2025, date: "2025년 4월 24일", keywords: ["LLM", "시스템 설계", "구현"], fee: 500000 },
+  { title: "AI 코딩과 개발 생산성 혁신", type: "ai_seminar", venue: "충남대학교 컴퓨터공학과", year: 2025, date: "2025년 4월 14일", keywords: ["AI 코딩", "생산성", "개발"], fee: 500000 },
+  { title: "엣지 컴퓨팅과 AI의 융합", type: "ai_seminar", venue: "KAIST 전기전자공학부", year: 2024, date: "2024년 12월 18일", keywords: ["엣지 컴퓨팅", "AI", "융합"], fee: 500000 },
+  { title: "AI 시대의 새로운 연구 패러다임", type: "ai_seminar", venue: "경희대학교 국제캠퍼스 전자신소재공학과", year: 2024, date: "2024년 11월 29일", keywords: ["AI", "연구", "패러다임"], fee: 500000 },
+  { title: "AI 캐릭터 시스템과 인터랙티브 AI", type: "ai_seminar", venue: "KAIST 전기전자공학부", year: 2024, date: "2024년 11월 28일", keywords: ["AI 캐릭터", "인터랙티브", "시스템"], fee: 500000 },
+  { title: "차세대 IT 인재를 위한 AI 기술 트렌드", type: "bk21", venue: "전북대학교 JIANT-IT 인재양성센터", year: 2023, date: "2023년 6월 1일", keywords: ["AI", "IT 인재", "BK21 FOUR"], fee: 500000 }
 ];
 
 const PAPERS_DATABASE = [
