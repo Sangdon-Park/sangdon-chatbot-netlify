@@ -774,17 +774,23 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             'ieee', 'sensors', 'access', 'mdpi',
             '년', '연도', 'year', '언제', 'when',
             '누구', 'who', '어떤', 'what', '뭐', '무엇',
-            '얼마', '돈', '50만원', '500000'
+            '얼마', '돈', '50만원', '500000',
+            '횟수', '회', '번', '개'
           ];
           
           for (const keyword of searchKeywords) {
             if (lower.includes(keyword)) return true;
           }
           
-          // Check if message contains author names
-          const authorNames = ['황강욱', '최준균', '이주형', '배소희', '오현택'];
+          // Check if message contains author names (more comprehensive list)
+          const authorNames = [
+            '황강욱', '최준균', '이주형', '배소희', '오현택',
+            '한재섭', '김장겸', '안재원', '김나경', '김민경',
+            '백범한', '정교훈', '서현석', '전진환', 'Yuyang Peng',
+            'Alaelddin', 'Mohammed', 'Gyeong Ho Lee', 'Min Chen'
+          ];
           for (const name of authorNames) {
-            if (lower.includes(name)) return true;
+            if (lower.includes(name.toLowerCase())) return true;
           }
           
           // Check if message contains university names  
@@ -919,6 +925,10 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           || /\d+\s*편/.test(lowerMsg)
           || /논문\s*(전부|전체|다)/.test(lowerMsg)
         );
+        
+        // Detect seminar/talk specific queries
+        const seminarQuery = /(세미나|강연|초청|talk|seminar|lecture)/.test(lowerMsg);
+        const seminarCountQuery = seminarQuery && countIntent;
 
         // Try to extract a specific collaborator name from message
         function extractCollaboratorNameFromMessage() {
@@ -987,7 +997,15 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           return { topName, count: topName ? (counts.get(topName) || list.length) : 0, list };
         }
         let deterministicReply = null;
-        if (countIntent) {
+        
+        // Handle seminar count queries specifically
+        if (seminarCountQuery) {
+          deterministicReply = `총 ${TALKS_DATABASE.length}회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
+            `[세미나] ${t.title} - ${t.venue} (${t.year})`
+          );
+        } else if (countIntent && !seminarQuery) {
+          // Paper count queries
           const effectiveQuery = (query && query.trim()) ? query : message;
           const matchedPapers = filterPapersByQuery(effectiveQuery || '', PAPERS_DATABASE);
           deterministicReply = `해당 주제 관련 논문은 ${matchedPapers.length}편입니다.`;
@@ -1065,17 +1083,19 @@ ${recent || '(이전 대화 없음)'}
 
 검색 결과:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
-중요 정보:
-- 초청 세미나: 총 9회 진행 (2023-2025년)
+중요 사실 정보 (반드시 정확하게 사용):
+- 초청 세미나: 총 9회 진행 (2023-2025년) - 세미나 개수를 물으면 "9회"라고 답변
 - 세미나 강연료: 1회당 50만원, 약 1시간 30분 진행
-- 최근 세미나: 부경대 (2025.2), KAIST (2025.1) 등
-- 논문: 총 25편의 국제저널 발표
+- 세미나 대학: 부경대(2025.2), KAIST(2025.1), 충남대, 경북대, 서강대, 성균관대, 포항공대(2023.11), 연세대(2023.10)
+- 논문: 총 25편의 국제저널 발표 - 논문 개수를 물으면 "25편"이라고 답변
+- 주요 공동연구자: 최준균, 이주형, 황강욱, 배소희, 오현택 교수
 
-답변 방식:
-1) 검색 결과와 위 정보를 바탕으로 사실적인 답변
-2) 간결하게 1-2문장으로 요약
-3) 수치나 통계는 명확하게 제시
-4) 추측이나 가정 금지`;
+답변 규칙:
+1) 세미나/강연 개수 → 9회 (25편 아님!)
+2) 논문 개수 → 25편 (9회 아님!)
+3) 강연료 → 50만원 (5만원 아님!)
+4) 검색 결과를 우선 활용
+5) 간결하게 1-2문장으로 답변`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,

@@ -1,0 +1,136 @@
+{
+  "timestamp": "2025-08-26T16:42:23.737Z",
+  "url": "https://sangdon-chatbot.netlify.app/.netlify/functions/chat-ai-driven",
+  "summary": {
+    "total": 15,
+    "passed": 9,
+    "failed": 6,
+    "duration": "96.08s"
+  },
+  "byCategory": {
+    "세미나 비용": {
+      "passed": 0,
+      "failed": 3
+    },
+    "세미나 개수": {
+      "passed": 0,
+      "failed": 2
+    },
+    "대학별 세미나": {
+      "passed": 3,
+      "failed": 0
+    },
+    "논문 개수": {
+      "passed": 1,
+      "failed": 0
+    },
+    "공동연구": {
+      "passed": 1,
+      "failed": 1
+    },
+    "최근 활동": {
+      "passed": 1,
+      "failed": 0
+    },
+    "연도별 활동": {
+      "passed": 1,
+      "failed": 0
+    },
+    "인사": {
+      "passed": 2,
+      "failed": 0
+    }
+  },
+  "results": [
+    {
+      "id": "fee-1",
+      "category": "세미나 비용",
+      "query": "AI 세미나 얼마야?",
+      "passed": false
+    },
+    {
+      "id": "fee-2",
+      "category": "세미나 비용",
+      "query": "강연료 얼마 받아?",
+      "passed": false
+    },
+    {
+      "id": "fee-3",
+      "category": "세미나 비용",
+      "query": "세미나 비용이 어떻게 돼?",
+      "passed": false
+    },
+    {
+      "id": "count-1",
+      "category": "세미나 개수",
+      "query": "세미나 몇 번 했어?",
+      "passed": false
+    },
+    {
+      "id": "count-2",
+      "category": "세미나 개수",
+      "query": "초청강연 총 몇 개야?",
+      "passed": false
+    },
+    {
+      "id": "univ-1",
+      "category": "대학별 세미나",
+      "query": "KAIST에서 세미나 했어?",
+      "passed": true
+    },
+    {
+      "id": "univ-2",
+      "category": "대학별 세미나",
+      "query": "부경대에서 강연했어?",
+      "passed": true
+    },
+    {
+      "id": "univ-3",
+      "category": "대학별 세미나",
+      "query": "포항공대 세미나는?",
+      "passed": true
+    },
+    {
+      "id": "paper-1",
+      "category": "논문 개수",
+      "query": "논문 몇 편 썼어?",
+      "passed": true
+    },
+    {
+      "id": "paper-2",
+      "category": "공동연구",
+      "query": "황강욱 교수님과 쓴 논문은?",
+      "passed": true
+    },
+    {
+      "id": "paper-3",
+      "category": "공동연구",
+      "query": "최준균 교수님과 몇 편 썼어?",
+      "passed": false
+    },
+    {
+      "id": "recent-1",
+      "category": "최근 활동",
+      "query": "최근 세미나는 뭐야?",
+      "passed": true
+    },
+    {
+      "id": "recent-2",
+      "category": "연도별 활동",
+      "query": "2024년에 세미나 했어?",
+      "passed": true
+    },
+    {
+      "id": "chat-1",
+      "category": "인사",
+      "query": "안녕하세요",
+      "passed": true
+    },
+    {
+      "id": "chat-2",
+      "category": "인사",
+      "query": "감사합니다",
+      "passed": true
+    }
+  ]
+}
