@@ -1006,10 +1006,10 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // Handle seminar count queries specifically
         if (seminarCountQuery) {
-          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
-          // Only return seminar results, no papers
+          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          // Only return seminar titles and venues, no years to avoid "25" confusion
           searchResults = TALKS_DATABASE.map(t => 
-            `[세미나] ${t.title} - ${t.venue} (${t.year})`
+            `[세미나] ${t.title} - ${t.venue}`
           );
           // Return immediately to prevent paper results from being added
           return {
@@ -1082,10 +1082,10 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           /(몇|개수|통계|횟수|회|번)/.test(lowerMsg) ||
           /(목록|리스트|전체|전부|보여)/.test(lowerMsg)
         )) {
-          // Force seminar count response
-          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          // Force seminar count response without years to avoid "25" confusion
+          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
           searchResults = TALKS_DATABASE.map(t => 
-            `[세미나] ${t.title} - ${t.venue} (${t.year})`
+            `[세미나] ${t.title} - ${t.venue}`
           );
         }
         
