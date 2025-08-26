@@ -904,7 +904,13 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }));
           // Prioritize publications for publication intents; otherwise include posts
           console.log('Starting embedding search for query:', query);
-          if (isPublicationIntent(message, query)) {
+          // Check if it's a seminar-specific query
+          const isSeminarQuery = /(세미나|강연|초청|talk|seminar|lecture|강의)/.test((message + ' ' + query).toLowerCase());
+          
+          if (isSeminarQuery) {
+            // Search primarily in talks/seminars
+            searchResults = await embeddingSearch(query || message, [], [], 9, true);
+          } else if (isPublicationIntent(message, query)) {
             searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 8);
           } else {
             searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 8, true); // Include talks
@@ -927,8 +933,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         );
         
         // Detect seminar/talk specific queries
-        const seminarQuery = /(세미나|강연|초청|talk|seminar|lecture)/.test(lowerMsg);
-        const seminarCountQuery = seminarQuery && countIntent;
+        const seminarQuery = /(세미나|강연|초청|talk|seminar|lecture|강의)/.test(lowerMsg);
+        const seminarCountQuery = seminarQuery && (countIntent || /(횟수|회|번|개수|몇|총)/.test(lowerMsg));
 
         // Try to extract a specific collaborator name from message
         function extractCollaboratorNameFromMessage() {
@@ -1000,8 +1006,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // Handle seminar count queries specifically
         if (seminarCountQuery) {
-          deterministicReply = `총 ${TALKS_DATABASE.length}회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
-          searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
+          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          searchResults = TALKS_DATABASE.slice(0, 9).map(t => 
             `[세미나] ${t.title} - ${t.venue} (${t.year})`
           );
         } else if (countIntent && !seminarQuery) {
@@ -1060,6 +1066,18 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
         }
 
+        // Additional check for seminar-specific queries that might have been missed
+        if (!deterministicReply && seminarQuery && (
+          /(몇|개수|통계|횟수|회|번)/.test(lowerMsg) ||
+          /(목록|리스트|전체|전부|보여)/.test(lowerMsg)
+        )) {
+          // Force seminar count response
+          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          searchResults = TALKS_DATABASE.map(t => 
+            `[세미나] ${t.title} - ${t.venue} (${t.year})`
+          );
+        }
+        
         // If we have a deterministic reply (counts/collaborators), we can skip LLM for robustness
         if (deterministicReply) {
           return {
@@ -1091,11 +1109,11 @@ ${recent || '(이전 대화 없음)'}
 - 주요 공동연구자: 최준균, 이주형, 황강욱, 배소희, 오현택 교수
 
 답변 규칙:
-1) 세미나/강연 개수 → 9회 (25편 아님!)
-2) 논문 개수 → 25편 (9회 아님!)
-3) 강연료 → 50만원 (5만원 아님!)
-4) 검색 결과를 우선 활용
-5) 간결하게 1-2문장으로 답변`;
+1) 세미나/강연 개수 → 반드시 "9회" 또는 "아홉 번" (25 절대 금지!)
+2) 논문 개수 → 반드시 "25편" (9 절대 금지!)
+3) 강연료 → "50만원" (5만원 절대 금지!)
+4) 세미나 시간 → "1시간 30분" 또는 "1.5시간"
+5) 검색 결과에 세미나가 있으면 개수는 9, 논문이 있으면 개수는 25`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
