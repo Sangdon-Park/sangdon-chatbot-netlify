@@ -14,15 +14,33 @@ const POSTS_DATABASE = [
 // Invited Talks and Seminars database (실제 데이터 from ko.html)
 // Real invited talks and seminars from ko.html (9 seminars, 2023-2025)
 const TALKS_DATABASE = [
-  { title: "AI Agent와 미래 혁신", type: "ai_seminar", venue: "부경대학교 산학협력단", year: 2025, date: "2025년 2월 3일", keywords: ["AI", "에이전트", "미래", "혁신", "부경대", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "디지털 트윈과 메타버스의 연구 동향", type: "ai_seminar", venue: "KAIST RIPE", year: 2025, date: "2025년 1월 14일", keywords: ["디지털트윈", "메타버스", "연구동향", "KAIST", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "AI교육", type: "ai_seminar", venue: "한국AI교육학회", year: 2024, date: "2024년 12월 11일", keywords: ["AI교육", "교육", "학회", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "AI교육과 미래 직업", type: "ai_seminar", venue: "충남대학교 SW융합교육원", year: 2024, date: "2024년 11월 16일", keywords: ["AI교육", "미래직업", "충남대", "SW융합", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "머신러닝 최적화", type: "ai_seminar", venue: "경북대학교 AI대학원", year: 2024, date: "2024년 5월 23일", keywords: ["머신러닝", "최적화", "경북대", "AI대학원", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "대규모 언어모델", type: "ai_seminar", venue: "서강대학교 데이터사이언스학과", year: 2024, date: "2024년 4월 9일", keywords: ["LLM", "언어모델", "서강대", "데이터사이언스", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "AI와 윤리", type: "ai_seminar", venue: "성균관대 글로벌융합학부", year: 2024, date: "2024년 3월 15일", keywords: ["AI윤리", "윤리", "성균관대", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "분산 인공지능", type: "ai_seminar", venue: "포항공대 컴퓨터공학과", year: 2023, date: "2023년 11월 28일", keywords: ["분산인공지능", "포항공대", "POSTECH", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
-  { title: "엣지컴퓨팅", type: "ai_seminar", venue: "연세대 공학교육혁신센터", year: 2023, date: "2023년 10월 12일", keywords: ["엣지컴퓨팅", "연세대", "공학교육", "seminar", "세미나", "강연", "초청강연"], fee: 500000 }
+  { title: "AI Agent와 미래 혁신", type: "ai_seminar", venue: "부경대학교 산학협력단", year: 2025, date: "2025년 2월 3일", 
+    keywords: ["AI", "에이전트", "미래", "혁신", "부경대", "seminar", "세미나", "강연", "초청강연", 
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "디지털 트윈과 메타버스의 연구 동향", type: "ai_seminar", venue: "KAIST RIPE", year: 2025, date: "2025년 1월 14일", 
+    keywords: ["디지털트윈", "메타버스", "연구동향", "KAIST", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI교육", type: "ai_seminar", venue: "한국AI교육학회", year: 2024, date: "2024년 12월 11일", 
+    keywords: ["AI교육", "교육", "학회", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI교육과 미래 직업", type: "ai_seminar", venue: "충남대학교 SW융합교육원", year: 2024, date: "2024년 11월 16일", 
+    keywords: ["AI교육", "미래직업", "충남대", "SW융합", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "머신러닝 최적화", type: "ai_seminar", venue: "경북대학교 AI대학원", year: 2024, date: "2024년 5월 23일", 
+    keywords: ["머신러닝", "최적화", "경북대", "AI대학원", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "대규모 언어모델", type: "ai_seminar", venue: "서강대학교 데이터사이언스학과", year: 2024, date: "2024년 4월 9일", 
+    keywords: ["LLM", "언어모델", "서강대", "데이터사이언스", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI와 윤리", type: "ai_seminar", venue: "성균관대 글로벌융합학부", year: 2024, date: "2024년 3월 15일", 
+    keywords: ["AI윤리", "윤리", "성균관대", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "분산 인공지능", type: "ai_seminar", venue: "포항공대 컴퓨터공학과", year: 2023, date: "2023년 11월 28일", 
+    keywords: ["분산인공지능", "포항공대", "POSTECH", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "엣지컴퓨팅", type: "ai_seminar", venue: "연세대 공학교육혁신센터", year: 2023, date: "2023년 10월 12일", 
+    keywords: ["엣지컴퓨팅", "연세대", "공학교육", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 }
 ];
 
 const PAPERS_DATABASE = [
@@ -755,7 +773,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             '공저', '공동', '같이', '함께', 'coauthor', 'collaborat',
             'ieee', 'sensors', 'access', 'mdpi',
             '년', '연도', 'year', '언제', 'when',
-            '누구', 'who', '어떤', 'what', '뭐', '무엇'
+            '누구', 'who', '어떤', 'what', '뭐', '무엇',
+            '얼마', '돈', '50만원', '500000'
           ];
           
           for (const keyword of searchKeywords) {
@@ -1037,21 +1056,26 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
-        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 결과를 반드시 활용하여 사용자 질문에 답변하세요.
+        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 결과를 활용하여 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
 
 이전 대화(최신순):
 ${recent || '(이전 대화 없음)'}
 
-검색 결과 (반드시 이 내용을 기반으로 답변):${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
+검색 결과:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
-중요한 규칙:
-1) 검색 결과에 있는 내용을 기반으로 답변 (결과가 없으면 "관련 자료를 찾을 수 없습니다" 라고 답변)
-2) 세미나/강연료 질문시: "초청 세미나는 1회당 50만원, 1시간 30분 정도 진행합니다" 
-3) 논문 개수: 전체 25편 (검색 결과에 따라 구체적인 수 제시)
-4) 절대 거짓 정보나 추측을 하지 말 것
-5) 1-2문장으로 간결하게 답변`;
+중요 정보:
+- 초청 세미나: 총 9회 진행 (2023-2025년)
+- 세미나 강연료: 1회당 50만원, 약 1시간 30분 진행
+- 최근 세미나: 부경대 (2025.2), KAIST (2025.1) 등
+- 논문: 총 25편의 국제저널 발표
+
+답변 방식:
+1) 검색 결과와 위 정보를 바탕으로 사실적인 답변
+2) 간결하게 1-2문장으로 요약
+3) 수치나 통계는 명확하게 제시
+4) 추측이나 가정 금지`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
