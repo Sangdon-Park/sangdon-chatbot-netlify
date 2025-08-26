@@ -1007,9 +1007,20 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         // Handle seminar count queries specifically
         if (seminarCountQuery) {
           deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 2023년부터 2025년까지 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
-          searchResults = TALKS_DATABASE.slice(0, 9).map(t => 
+          // Only return seminar results, no papers
+          searchResults = TALKS_DATABASE.map(t => 
             `[세미나] ${t.title} - ${t.venue} (${t.year})`
           );
+          // Return immediately to prevent paper results from being added
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              step: 2,
+              reply: deterministicReply,
+              searchResults: searchResults
+            })
+          };
         } else if (countIntent && !seminarQuery) {
           // Paper count queries
           const effectiveQuery = (query && query.trim()) ? query : message;
