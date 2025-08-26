@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
+const { getCachedEmbedding, setCachedEmbedding } = require('./embeddings-cache');
 
 // Enhanced database with proper search capability
 const POSTS_DATABASE = [
@@ -283,8 +284,15 @@ async function embeddingSearch(query, papers, posts, maxResults = 5) {
   }
 }
 
-// Helper function to get embedding from Google's API
+// Helper function to get embedding from Google's API with caching
 async function getEmbedding(text, apiKey) {
+  // Check cache first
+  const cached = getCachedEmbedding(text);
+  if (cached) {
+    console.log('Using cached embedding for:', text.substring(0, 50));
+    return cached;
+  }
+
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
@@ -309,7 +317,13 @@ async function getEmbedding(text, apiKey) {
     }
 
     const data = await response.json();
-    return data.embedding.values;
+    const embedding = data.embedding.values;
+    
+    // Cache the embedding
+    setCachedEmbedding(text, embedding);
+    console.log('Cached new embedding for:', text.substring(0, 50));
+    
+    return embedding;
   } catch (error) {
     console.error('Error getting embedding:', error);
     return null;
@@ -592,11 +606,13 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             year: p.year || ''
           }));
           // Prioritize publications for publication intents; otherwise include posts
+          console.log('Starting embedding search for query:', query);
           if (isPublicationIntent(message, query)) {
             searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 8);
           } else {
             searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
           }
+          console.log('Embedding search results:', searchResults);
         }
 
         // Generate final response with context
