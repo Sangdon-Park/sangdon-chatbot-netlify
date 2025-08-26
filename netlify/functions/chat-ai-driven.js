@@ -12,16 +12,17 @@ const POSTS_DATABASE = [
 ];
 
 // Invited Talks and Seminars database (실제 데이터 from ko.html)
+// Real invited talks and seminars from ko.html (9 seminars, 2023-2025)
 const TALKS_DATABASE = [
-  { title: "AI 기술의 최신 동향과 실무 적용 사례", type: "ai_seminar", venue: "부경대학교 전자정보통신공학부", year: 2025, date: "2025년 5월 14일", keywords: ["AI", "실무", "최신 동향"], fee: 500000 },
-  { title: "AI 반도체 기술과 LLM 응용", type: "executive_course", venue: "KAIST AI반도체학과 최고경영자과정", year: 2025, date: "2025년 5월 7일", keywords: ["AI 반도체", "LLM", "executive"], fee: 500000 },
-  { title: "수학과 AI의 만남: 차세대 연구자를 위한 통찰", type: "colloquium", venue: "한국과학영재학교 (KAIST 부설)", year: 2025, date: "2025년 4월 30일", keywords: ["수학", "AI", "영재교육"], fee: 500000 },
-  { title: "LLM 기반 시스템 설계와 구현", type: "ai_seminar", venue: "경북대학교", year: 2025, date: "2025년 4월 24일", keywords: ["LLM", "시스템 설계", "구현"], fee: 500000 },
-  { title: "AI 코딩과 개발 생산성 혁신", type: "ai_seminar", venue: "충남대학교 컴퓨터공학과", year: 2025, date: "2025년 4월 14일", keywords: ["AI 코딩", "생산성", "개발"], fee: 500000 },
-  { title: "엣지 컴퓨팅과 AI의 융합", type: "ai_seminar", venue: "KAIST 전기전자공학부", year: 2024, date: "2024년 12월 18일", keywords: ["엣지 컴퓨팅", "AI", "융합"], fee: 500000 },
-  { title: "AI 시대의 새로운 연구 패러다임", type: "ai_seminar", venue: "경희대학교 국제캠퍼스 전자신소재공학과", year: 2024, date: "2024년 11월 29일", keywords: ["AI", "연구", "패러다임"], fee: 500000 },
-  { title: "AI 캐릭터 시스템과 인터랙티브 AI", type: "ai_seminar", venue: "KAIST 전기전자공학부", year: 2024, date: "2024년 11월 28일", keywords: ["AI 캐릭터", "인터랙티브", "시스템"], fee: 500000 },
-  { title: "차세대 IT 인재를 위한 AI 기술 트렌드", type: "bk21", venue: "전북대학교 JIANT-IT 인재양성센터", year: 2023, date: "2023년 6월 1일", keywords: ["AI", "IT 인재", "BK21 FOUR"], fee: 500000 }
+  { title: "AI Agent와 미래 혁신", type: "ai_seminar", venue: "부경대학교 산학협력단", year: 2025, date: "2025년 2월 3일", keywords: ["AI", "에이전트", "미래", "혁신", "부경대", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "디지털 트윈과 메타버스의 연구 동향", type: "ai_seminar", venue: "KAIST RIPE", year: 2025, date: "2025년 1월 14일", keywords: ["디지털트윈", "메타버스", "연구동향", "KAIST", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "AI교육", type: "ai_seminar", venue: "한국AI교육학회", year: 2024, date: "2024년 12월 11일", keywords: ["AI교육", "교육", "학회", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "AI교육과 미래 직업", type: "ai_seminar", venue: "충남대학교 SW융합교육원", year: 2024, date: "2024년 11월 16일", keywords: ["AI교육", "미래직업", "충남대", "SW융합", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "머신러닝 최적화", type: "ai_seminar", venue: "경북대학교 AI대학원", year: 2024, date: "2024년 5월 23일", keywords: ["머신러닝", "최적화", "경북대", "AI대학원", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "대규모 언어모델", type: "ai_seminar", venue: "서강대학교 데이터사이언스학과", year: 2024, date: "2024년 4월 9일", keywords: ["LLM", "언어모델", "서강대", "데이터사이언스", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "AI와 윤리", type: "ai_seminar", venue: "성균관대 글로벌융합학부", year: 2024, date: "2024년 3월 15일", keywords: ["AI윤리", "윤리", "성균관대", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "분산 인공지능", type: "ai_seminar", venue: "포항공대 컴퓨터공학과", year: 2023, date: "2023년 11월 28일", keywords: ["분산인공지능", "포항공대", "POSTECH", "seminar", "세미나", "강연", "초청강연"], fee: 500000 },
+  { title: "엣지컴퓨팅", type: "ai_seminar", venue: "연세대 공학교육혁신센터", year: 2023, date: "2023년 10월 12일", keywords: ["엣지컴퓨팅", "연세대", "공학교육", "seminar", "세미나", "강연", "초청강연"], fee: 500000 }
 ];
 
 const PAPERS_DATABASE = [
@@ -447,7 +448,7 @@ async function embeddingSearch(query, papers, posts, maxResults = 5, includeTalk
       const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
       if (docEmbedding) {
         const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-        if (similarity > 0.3) { // Threshold for relevance
+        if (similarity > 0.25) { // Lowered threshold for better recall
           const label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
           results.push({ label, score: similarity, type: 'paper', data: p });
         }
@@ -465,7 +466,7 @@ async function embeddingSearch(query, papers, posts, maxResults = 5, includeTalk
       const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
       if (docEmbedding) {
         const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-        if (similarity > 0.3) {
+        if (similarity > 0.25) { // Lowered threshold for posts
           const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
           results.push({ label, score: similarity, type: 'post', data: a });
         }
@@ -486,7 +487,7 @@ async function embeddingSearch(query, papers, posts, maxResults = 5, includeTalk
         const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
         if (docEmbedding) {
           const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-          if (similarity > 0.3) {
+          if (similarity > 0.2) { // Lower threshold for talks to improve recall
             const typeLabel = t.type === 'invited_talk' ? '초청강연' : '세미나';
             const label = `[${typeLabel}] ${t.title} - ${t.venue} (${t.year})`;
             results.push({ label, score: similarity, type: t.type, data: t });
@@ -679,17 +680,28 @@ exports.handler = async (event, context) => {
         const actionPrompt = `당신은 박상돈 본인입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
 
 사용 가능한 행동:
-- SEARCH: 논문, 공동연구자, 주제 등 모든 검색 관련 질문
-- CHAT: 인사, 일반 대화, 검색이 필요 없는 것
+- SEARCH: 논문, 공동연구자, 초청강연, 세미나, 주제 등 모든 검색 관련 질문 (거의 대부분의 질문은 SEARCH)
+- CHAT: 인사말, 감사 인사 등 단순한 대화 ONLY
 
 이전 대화(최신순):
 ${recent || '(이전 대화 없음)'}
 
+중요: 다음은 모두 SEARCH입니다:
+- 논문/저널/publication 관련
+- 초청강연/세미나/강연료 관련  
+- 공동연구자/저자 관련
+- 연구 주제/키워드 관련
+- 개수/통계 관련
+- 년도/기간 관련
+
 예시:
 Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH, QUERY: AI 논문
+Q: "세미나 몇 번 했어?" → ACTION: SEARCH, QUERY: 세미나 초청강연
+Q: "강연료 얼마?" → ACTION: SEARCH, QUERY: 세미나 강연료
 Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH, QUERY: 황강욱
 Q: "논문 몇 편?" → ACTION: SEARCH, QUERY: 논문 개수 통계
 Q: "안녕하세요" → ACTION: CHAT
+Q: "감사합니다" → ACTION: CHAT
 
 반드시 이 형식으로 응답:
 ACTION: [SEARCH 또는 CHAT]
@@ -729,22 +741,50 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         let query = queryMatch ? queryMatch[1].trim() : '';
         let initialMessage = initialMatch ? initialMatch[1].trim() : null;
 
-        // Heuristic override: if LLM decided CHAT but the message strongly suggests search
-        // we trigger SEARCH to leverage local RAG for accuracy.
+        // Enhanced heuristic: More aggressive SEARCH detection
         function messageSuggestsSearch(text) {
+          const lower = (text || '').toLowerCase();
+          
+          // Direct keywords that always trigger SEARCH
+          const searchKeywords = [
+            '논문', '저널', 'paper', 'publication', 'journal',
+            '세미나', '강연', '초청', 'seminar', 'talk', 'lecture',
+            '강연료', '비용', 'fee',
+            '몇', '개수', '통계', 'count', 'how many',
+            '연구', 'research', '주제', 'topic',
+            '공저', '공동', '같이', '함께', 'coauthor', 'collaborat',
+            'ieee', 'sensors', 'access', 'mdpi',
+            '년', '연도', 'year', '언제', 'when',
+            '누구', 'who', '어떤', 'what', '뭐', '무엇'
+          ];
+          
+          for (const keyword of searchKeywords) {
+            if (lower.includes(keyword)) return true;
+          }
+          
+          // Check if message contains author names
+          const authorNames = ['황강욱', '최준균', '이주형', '배소희', '오현택'];
+          for (const name of authorNames) {
+            if (lower.includes(name)) return true;
+          }
+          
+          // Check if message contains university names  
+          const unis = ['kaist', '카이스트', '경북대', '충남대', '부경대', '포항공대', '연세대', '서강대', '성균관대'];
+          for (const uni of unis) {
+            if (lower.includes(uni)) return true;
+          }
+          
+          // Fallback to original logic
           const tks = expandTokensWithSynonyms(tokenize(text || ''));
           if (tks.length === 0) return false;
-          // Build a small haystack from known content
           const hayArr = [];
           for (const p of PAPERS_DATABASE) {
             hayArr.push((p.title||'').toLowerCase());
             if (Array.isArray(p.keywords)) hayArr.push(p.keywords.join(' ').toLowerCase());
-            hayArr.push((p.journal||'').toLowerCase());
           }
-          for (const a of POSTS_DATABASE) {
-            hayArr.push((a.title||'').toLowerCase());
-            if (Array.isArray(a.keywords)) hayArr.push(a.keywords.join(' ').toLowerCase());
-            hayArr.push((a.description||'').toLowerCase());
+          for (const t of TALKS_DATABASE) {
+            hayArr.push((t.title||'').toLowerCase());
+            if (Array.isArray(t.keywords)) hayArr.push(t.keywords.join(' ').toLowerCase());
           }
           const hay = hayArr.join(' ');
           let hits = 0;
@@ -842,7 +882,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           if (isPublicationIntent(message, query)) {
             searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 8);
           } else {
-            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, postsFlat, 5);
+            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 8, true); // Include talks
           }
           console.log('Embedding search results:', searchResults);
         }
@@ -997,19 +1037,21 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
-        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 요약과 이전 대화를 바탕으로 사용자 질문에 답변하세요.
+        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 결과를 반드시 활용하여 사용자 질문에 답변하세요.
 
 사용자 질문: ${message}
 
 이전 대화(최신순):
 ${recent || '(이전 대화 없음)'}
 
-검색 요약:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
+검색 결과 (반드시 이 내용을 기반으로 답변):${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
-규칙:
-1) 검색 요약을 그대로 복사하지 말고, 1~2문장 한국어로 함축 답변
-2) 숫자/통계를 묻는 경우 간결히 수치만 제시
-3) 불확실하면 과장 없이 보수적으로 답변`;
+중요한 규칙:
+1) 검색 결과에 있는 내용을 기반으로 답변 (결과가 없으면 "관련 자료를 찾을 수 없습니다" 라고 답변)
+2) 세미나/강연료 질문시: "초청 세미나는 1회당 50만원, 1시간 30분 정도 진행합니다" 
+3) 논문 개수: 전체 25편 (검색 결과에 따라 구체적인 수 제시)
+4) 절대 거짓 정보나 추측을 하지 말 것
+5) 1-2문장으로 간결하게 답변`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
