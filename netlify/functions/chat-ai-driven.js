@@ -409,6 +409,49 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         console.log('Parsed/Resolved - Action:', action, 'Query:', query, 'Initial:', initialMessage);
 
+        // Log CHAT action to Supabase (since it won't go to step 2)
+        if (action === 'CHAT') {
+          try {
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+            
+            if (supabaseUrl && supabaseKey) {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+              
+              // Get IP address
+              const ip = event.headers['x-forwarded-for'] || 
+                        event.headers['client-ip'] || 
+                        'unknown';
+              
+              const dataToInsert = {
+                user_message: message,
+                bot_response: initialMessage,
+                conversation_history: Array.isArray(history) ? history.slice(-10) : [],
+                action_taken: action,
+                search_results: null,
+                user_ip: ip,
+                user_agent: event.headers['user-agent'] || 'unknown'
+              };
+              
+              console.log('Step 1 CHAT - Logging to Supabase');
+              
+              const insertResult = await supabase
+                .from('chat_logs')
+                .insert([dataToInsert])
+                .select();
+              
+              if (insertResult.error) {
+                console.error('Step 1 Supabase error:', insertResult.error.message);
+              } else {
+                console.log('Step 1 Supabase success - ID:', insertResult.data?.[0]?.id);
+              }
+            }
+          } catch (logError) {
+            console.error('Step 1 logging error:', logError);
+            // Continue even if logging fails
+          }
+        }
+
         // Return initial response to show user
         return {
           statusCode: 200,
