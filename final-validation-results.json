@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-27T06:18:54.451Z",
+  "totalTests": 12,
+  "passed": 9,
+  "failed": 3,
+  "passRate": 75,
+  "details": [
+    {
+      "name": "세미나 비용",
+      "status": "PASS"
+    },
+    {
+      "name": "세미나 비용2",
+      "status": "PASS"
+    },
+    {
+      "name": "세미나 개수",
+      "status": "PASS"
+    },
+    {
+      "name": "논문 개수",
+      "status": "PASS"
+    },
+    {
+      "name": "세미나 신청",
+      "status": "PASS"
+    },
+    {
+      "name": "일반 문의",
+      "status": "PASS"
+    },
+    {
+      "name": "고려대 날짜",
+      "status": "FAIL",
+      "issues": [
+        "금지어: \"25\""
+      ]
+    },
+    {
+      "name": "경상국립대 날짜",
+      "status": "FAIL",
+      "issues": [
+        "금지어: \"25\""
+      ]
+    },
+    {
+      "name": "짧은 문맥 - 비용",
+      "status": "PASS"
+    },
+    {
+      "name": "짧은 문맥 - 개수",
+      "status": "PASS"
+    },
+    {
+      "name": "복합 질문",
+      "status": "FAIL",
+      "issues": [
+        "누락: \"50만원\""
+      ]
+    },
+    {
+      "name": "오타 처리",
+      "status": "PASS"
+    }
+  ]
+}
