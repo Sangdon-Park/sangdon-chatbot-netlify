@@ -445,7 +445,7 @@ function computeMatchScore(tokens, hayLower) {
 }
 
 // Embedding-based semantic search using Google's text-embedding API
-async function embeddingSearch(query, papers, posts, maxResults = 5, includeTalks = true) {
+async function embeddingSearch(query, papers, posts, maxResults = 20, includeTalks = true) {
   if (!query || typeof query !== 'string') return [];
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -929,11 +929,11 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           
           if (isSeminarQuery) {
             // Search primarily in talks/seminars
-            searchResults = await embeddingSearch(query || message, [], [], 9, true);
+            searchResults = await embeddingSearch(query || message, [], [], 15, true);
           } else if (isPublicationIntent(message, query)) {
-            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 8);
+            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 25);
           } else {
-            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 8, true); // Include talks
+            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 20, true); // Include talks
           }
           console.log('Embedding search results:', searchResults);
         }
@@ -1109,7 +1109,21 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           // Tally collaborators from dataset authors
           const specificName = extractCollaboratorNameFromMessage();
           let { topName, count, list } = computeCollaboratorsAndList(specificName);
-          if (topName) {
+          
+          // If asking to show all papers with a collaborator
+          if ((listIntent || /다\s*(보여|나열|써|적어)/.test(lowerMsg)) && specificName && list.length > 0) {
+            deterministicReply = `${topName}님과 함께한 논문은 총 ${list.length}편입니다:\n\n${list.join('\n')}`;
+            searchResults = list;
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                step: 2,
+                reply: deterministicReply,
+                searchResults: searchResults
+              })
+            };
+          } else if (topName) {
             if (listIntent) {
               // Provide deterministic list
               deterministicReply = `${topName}님과 함께한 논문은 총 ${list.length}편입니다. 아래 목록을 참고하세요.`;
@@ -1208,7 +1222,7 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 �
               }],
               generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 500
+                maxOutputTokens: 2000
               }
             })
           }
