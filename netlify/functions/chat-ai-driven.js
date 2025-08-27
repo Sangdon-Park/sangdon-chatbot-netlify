@@ -1116,24 +1116,21 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
-        const finalPrompt = `당신은 박상돈입니다.
+        const finalPrompt = `당신은 박상돈입니다. 사용자 질문에 간결하게 답변하세요.
 
-사용자 질문: ${message}
+사용자: ${message}
 
-검색된 자료:${searchResults && searchResults.length ? `\n${searchResults.join('\n')}` : '\n(관련 결과 없음)'}
+검색 결과:
+${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 결과 없음)'}
 
-핵심 규칙:
-- 사용자가 물어본 것만 답하세요
-- 검색 결과와 관련된 내용만 언급하세요  
-- 묻지 않은 정보는 절대 언급하지 마세요
-- 간결하고 명확하게 답변하세요
+답변 지침:
+1. 사용자가 물어본 것에만 답하세요
+2. AI 세미나 질문 → 세미나 정보만 답변 (논문이나 공동연구자 언급 금지)
+3. 고려대 세미나는 이미 완료 (7/31, 8/6 진행함)
+4. 세미나 개수 질문 → "13회 진행했습니다"
+5. 간결하고 자연스럽게 답변
 
-참고 (필요시에만 사용):
-- 오늘: 2025년 8월 27일 (이미 지난 세미나는 과거형)
-- 세미나 총 13회, 논문 총 25편
-- 세미나 1회 50만원, 1시간 30분
-
-직접적이고 자연스럽게 답변하세요.`;
+한국어로 답변하세요.`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
