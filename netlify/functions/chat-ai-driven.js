@@ -557,7 +557,8 @@ async function getEmbedding(text, apiKey) {
           content: {
             parts: [{ text: text }]
           },
-          taskType: 'RETRIEVAL_DOCUMENT'
+          taskType: 'RETRIEVAL_DOCUMENT',
+          outputDimensionality: 768
         })
       }
     );
@@ -741,7 +742,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
 사용자: ${message}`;
 
         const actionResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1125,9 +1126,10 @@ ${recent || '(이전 대화 없음)'}
 검색 결과:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
 중요 사실 정보 (반드시 정확하게 사용):
-- 초청 세미나: 총 13회 진행 (2023-2025년) - 세미나 개수를 물으면 "13회"라고 답변
+- 오늘 날짜: 2025년 8월 27일
+- 초청 세미나: 총 13회 진행 완료 (2023-2025년) - 세미나 개수를 물으면 "13회 진행했습니다"
 - 세미나 강연료: 1회당 50만원, 약 1시간 30분 진행
-- 주요 세미나: 경상국립대(2025.8), BIEN 컨퍼런스(2025.8), 유성구청(2025.8), 고려대(2025.7-8), 부경대(2025.5), KAIST, 한국과학영재학교, 경북대, 충남대, 경희대(2024.11), 전북대(2023.6)
+- 완료된 세미나: 경상국립대(8/25 완료), BIEN(8/21 완료), 유성구청(8/11 완료), 고려대(7/31, 8/6 완료) - 모두 과거형으로
 - 논문: 총 25편의 국제저널 발표 - 논문 개수를 물으면 "25편"이라고 답변
 - 주요 공동연구자: 최준균, 이주형, 황강욱, 배소희, 오현택 교수
 
@@ -1139,7 +1141,7 @@ ${recent || '(이전 대화 없음)'}
 5) 검색 결과에 세미나가 있으면 개수는 13, 논문이 있으면 개수는 25`;
 
         const finalResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
