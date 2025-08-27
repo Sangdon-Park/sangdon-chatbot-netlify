@@ -1024,6 +1024,44 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
         let deterministicReply = null;
         
+        // Handle short context-dependent queries by checking recent history
+        const isShortContextQuery = message.length < 10 && (
+          /(시간|얼마|언제|몇|어디|뭐|논문|세미나)/.test(lowerMsg)
+        );
+        
+        if (isShortContextQuery && history && history.length > 0) {
+          // Check recent context for what topic we're discussing
+          const recentContext = history.slice(-2).map(h => h.content).join(' ').toLowerCase();
+          
+          // Time-related follow-up
+          if (/(시간|몇시|얼마나)/.test(lowerMsg) && /(세미나|강연)/.test(recentContext)) {
+            deterministicReply = `1시간 30분입니다. 모든 세미나가 동일한 시간으로 진행됩니다.`;
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                step: 2,
+                reply: deterministicReply,
+                searchResults: [`[세미나 정보] 시간: 1시간 30분`]
+              })
+            };
+          }
+          
+          // Paper count follow-up after seminar discussion
+          if (/(논문)/.test(lowerMsg) && /(세미나|강연)/.test(recentContext)) {
+            deterministicReply = `논문은 총 25편입니다. 세미나와는 별개로 국제저널 논문 25편을 발표했습니다.`;
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                step: 2,
+                reply: deterministicReply,
+                searchResults: null
+              })
+            };
+          }
+        }
+        
         // Handle seminar pricing queries specifically
         const pricingQuery = /(강연료|비용|얼마|fee|가격|금액|돈)/.test(lowerMsg) && (seminarQuery || /(AI|세미나|강연)/.test(lowerMsg));
         
