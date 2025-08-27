@@ -1060,6 +1060,22 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
         }
         
+        // Handle seminar application/request queries
+        const applicationQuery = /(신청|요청|의뢰|부탁|contact|연락|이메일|메일|문의)/.test(lowerMsg) && (seminarQuery || /(AI|세미나|강연)/.test(lowerMsg));
+        
+        if (applicationQuery) {
+          deterministicReply = `AI 세미나를 신청해 주셔서 감사합니다!\n\n세미나 신청 및 문의는 아래 연락처로 부탁드립니다:\n📧 이메일: chaos@sayberrygames.com\n\n신청 시 아래 정보를 알려주시면 맞춤형 세미나를 준비하겠습니다:\n- 기관/회사명\n- 희망 날짜 및 시간\n- 예상 참석 인원\n- 관심 주제 (AI 기초, LLM 활용, 연구자를 위한 AI 등)\n- 청중 수준 (초급/중급/고급)\n\n강연료는 시간당 50만원 기준이며, 1-2시간 진행됩니다. 원하시면 여러 회차로 나누어 진행도 가능합니다.`;
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              step: 2,
+              reply: deterministicReply,
+              searchResults: [`[세미나 신청] 이메일: chaos@sayberrygames.com`]
+            })
+          };
+        }
+        
         // Handle seminar pricing queries specifically
         const pricingQuery = /(강연료|비용|얼마|fee|가격|금액|돈)/.test(lowerMsg) && (seminarQuery || /(AI|세미나|강연)/.test(lowerMsg));
         
@@ -1186,7 +1202,8 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 �
 3. 고려대 세미나는 이미 완료 (7/31, 8/6 진행함)
 4. 세미나 개수 질문 → "13회 진행했습니다"
 5. 세미나 비용/강연료 질문 → "시간당 50만원 기준, 1-2시간 진행, 맞춤형 가능"
-6. 간결하고 자연스럽게 답변
+6. 세미나 신청/문의 → "chaos@sayberrygames.com으로 연락 주세요"
+7. 간결하고 자연스럽게 답변
 
 한국어로 답변하세요.`;
 
