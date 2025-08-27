@@ -1,9 +1,9 @@
 {
-  "timestamp": "2025-08-27T06:18:54.451Z",
+  "timestamp": "2025-08-27T06:27:29.285Z",
   "totalTests": 12,
-  "passed": 9,
-  "failed": 3,
-  "passRate": 75,
+  "passed": 10,
+  "failed": 2,
+  "passRate": 83,
   "details": [
     {
       "name": "세미나 비용",
@@ -31,10 +31,7 @@
     },
     {
       "name": "고려대 날짜",
-      "status": "FAIL",
-      "issues": [
-        "금지어: \"25\""
-      ]
+      "status": "PASS"
     },
     {
       "name": "경상국립대 날짜",

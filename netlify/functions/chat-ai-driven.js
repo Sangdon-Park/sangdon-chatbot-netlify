@@ -1025,8 +1025,32 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         // Remove hardcoded responses - let AI handle context-dependent queries naturally
         
         // Keep only essential deterministic responses for accuracy
-        // Count queries need deterministic answers to avoid hallucination
-        if (seminarCountQuery) {
+        // Handle complex/compound questions first
+        if (/(얼마.*몇\s*번|몇\s*번.*얼마)/.test(lowerMsg)) {
+          // 복합 질문: 가격과 횟수 모두
+          deterministicReply = `시간당 50만원이고, 총 13회의 초청 세미나를 진행했습니다.`;
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              step: 2,
+              reply: deterministicReply,
+              searchResults: null
+            })
+          };
+        } else if (/(논문.*세미나|세미나.*논문).*몇/.test(lowerMsg)) {
+          // 복합 질문: 논문과 세미나 개수
+          deterministicReply = `논문은 25편, 세미나는 13회 진행했습니다.`;
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              step: 2,
+              reply: deterministicReply,
+              searchResults: null
+            })
+          };
+        } else if (seminarCountQuery) {
           deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 컨퍼런스, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
             `[세미나] ${t.title} - ${t.venue}`
@@ -1162,6 +1186,9 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 
 ▶ 일반 문의 (AI 세미나에 대해/궁금/알려):
 → "AI 기초부터 LLM까지 다룹니다. 시간당 50만원, 1-2시간 진행. 신청: chaos@sayberrygames.com"
+
+▶ 맞춤형 관련:
+→ "청중 수준과 관심사에 맞춰 내용을 조정합니다. 초급자는 기초부터, 연구자는 논문 기반 심화 내용까지 가능합니다."
 
 ▶ 대학 날짜:
 - 고려대 → "7월입니다" (2025 붙이지 말것!)
