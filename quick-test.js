@@ -4,13 +4,14 @@ const fetch = require('node-fetch');
 const PROD_URL = 'https://sangdon-chatbot.netlify.app/.netlify/functions/chat-ai-driven';
 
 const CRITICAL_TESTS = [
-  { query: '세미나 몇 번 했어?', shouldHave: '9', shouldNotHave: '25' },
-  { query: '초청강연 총 몇 개야?', shouldHave: '9', shouldNotHave: '25' },
-  { query: '논문 몇 편 썼어?', shouldHave: '25', shouldNotHave: '9' },
+  { query: '세미나 몇 번 했어?', shouldHave: '13', shouldNotHave: '25' },
+  { query: '초청강연 총 몇 개야?', shouldHave: '13', shouldNotHave: '25' },
+  { query: '논문 몇 편 썼어?', shouldHave: '25', shouldNotHave: '13' },
   { query: 'AI 세미나 얼마야?', shouldHave: '50만원', shouldNotHave: '5만원' },
   { query: '세미나 시간은?', shouldHave: '1시간 30분', shouldNotHave: null },
   { query: '최준균 교수님과 논문?', shouldHave: '최준균', shouldNotHave: null },
   { query: 'KAIST 세미나?', shouldHave: 'KAIST', shouldNotHave: null },
+  { query: '고려대 세미나?', shouldHave: '고려대', shouldNotHave: null },
 ];
 
 async function testQuery(test) {

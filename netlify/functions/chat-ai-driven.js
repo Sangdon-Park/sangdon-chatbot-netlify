@@ -11,35 +11,47 @@ const POSTS_DATABASE = [
   { title: "AI 캐릭터 대화 시스템", type: "project", keywords: ["AI", "character", "Gemini", "Harry Potter"], year: 2024, description: "해리포터 캐릭터 구현" }
 ];
 
-// Invited Talks and Seminars database (실제 데이터 from ko.html)
-// Real invited talks and seminars from ko.html (9 seminars, 2023-2025)
+// Invited Talks and Seminars database (실제 데이터 from cv-ko.tex)
+// Real invited talks and seminars from cv-ko.tex (13 seminars, 2023-2025)
 const TALKS_DATABASE = [
-  { title: "AI Agent와 미래 혁신", type: "ai_seminar", venue: "부경대학교 산학협력단", year: 2025, date: "2025년 2월 3일", 
-    keywords: ["AI", "에이전트", "미래", "혁신", "부경대", "seminar", "세미나", "강연", "초청강연", 
+  { title: "연구자를 위한 AI 세미나", type: "ai_seminar", venue: "경상국립대학교 정보통계학과", year: 2025, date: "2025년 8월 25일", 
+    keywords: ["AI", "연구자", "경상국립대", "정보통계", "seminar", "세미나", "강연", "초청강연", 
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "디지털 트윈과 메타버스의 연구 동향", type: "ai_seminar", venue: "KAIST RIPE", year: 2025, date: "2025년 1월 14일", 
-    keywords: ["디지털트윈", "메타버스", "연구동향", "KAIST", "seminar", "세미나", "강연", "초청강연",
+  { title: "LLM과 RAG 기술로 구현하는 차세대 AI NPC", type: "conference", venue: "BIEN 2025 IT 과학세션, 대전 ICC 호텔", year: 2025, date: "2025년 8월 21일", 
+    keywords: ["LLM", "RAG", "AI", "NPC", "BIEN", "대전", "ICC", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "AI교육", type: "ai_seminar", venue: "한국AI교육학회", year: 2024, date: "2024년 12월 11일", 
-    keywords: ["AI교육", "교육", "학회", "seminar", "세미나", "강연", "초청강연",
+  { title: "지역역량 구축 교육 AI/LLM 세미나", type: "ai_seminar", venue: "대전광역시 유성구청", year: 2025, date: "2025년 8월 11일", 
+    keywords: ["AI", "LLM", "지역역량", "유성구청", "대전", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "AI교육과 미래 직업", type: "ai_seminar", venue: "충남대학교 SW융합교육원", year: 2024, date: "2024년 11월 16일", 
-    keywords: ["AI교육", "미래직업", "충남대", "SW융합", "seminar", "세미나", "강연", "초청강연",
+  { title: "연구자를 위한 AI 세미나", type: "ai_seminar", venue: "고려대학교 화공생명공학과", year: 2025, date: "2025년 7월 31일 & 8월 6일", 
+    keywords: ["AI", "연구자", "고려대", "화공생명", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "머신러닝 최적화", type: "ai_seminar", venue: "경북대학교 AI대학원", year: 2024, date: "2024년 5월 23일", 
-    keywords: ["머신러닝", "최적화", "경북대", "AI대학원", "seminar", "세미나", "강연", "초청강연",
+  { title: "AI 세미나", type: "ai_seminar", venue: "부경대학교 전자정보통신공학부", year: 2025, date: "2025년 5월 14일", 
+    keywords: ["AI", "부경대", "전자정보통신", "seminar", "세미나", "강연", "초청강연", 
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "대규모 언어모델", type: "ai_seminar", venue: "서강대학교 데이터사이언스학과", year: 2024, date: "2024년 4월 9일", 
-    keywords: ["LLM", "언어모델", "서강대", "데이터사이언스", "seminar", "세미나", "강연", "초청강연",
+  { title: "AI 반도체학과 최고경영자과정 AI/LLM 세미나", type: "executive_course", venue: "KAIST", year: 2025, date: "2025년 5월 7일", 
+    keywords: ["AI반도체", "LLM", "KAIST", "최고경영자", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "AI와 윤리", type: "ai_seminar", venue: "성균관대 글로벌융합학부", year: 2024, date: "2024년 3월 15일", 
-    keywords: ["AI윤리", "윤리", "성균관대", "seminar", "세미나", "강연", "초청강연",
+  { title: "수학 콜로퀴움 AI 세미나", type: "mathematics_colloquium", venue: "한국과학영재학교", year: 2025, date: "2025년 4월 30일", 
+    keywords: ["수학", "AI", "한국과학영재학교", "KAIST", "콜로퀴움", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "분산 인공지능", type: "ai_seminar", venue: "포항공대 컴퓨터공학과", year: 2023, date: "2023년 11월 28일", 
-    keywords: ["분산인공지능", "포항공대", "POSTECH", "seminar", "세미나", "강연", "초청강연",
+  { title: "AI 세미나", type: "ai_seminar", venue: "경북대학교", year: 2025, date: "2025년 4월 24일", 
+    keywords: ["AI", "경북대", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
-  { title: "엣지컴퓨팅", type: "ai_seminar", venue: "연세대 공학교육혁신센터", year: 2023, date: "2023년 10월 12일", 
-    keywords: ["엣지컴퓨팅", "연세대", "공학교육", "seminar", "세미나", "강연", "초청강연",
+  { title: "AI 세미나", type: "ai_seminar", venue: "충남대학교 컴퓨터융합학부", year: 2025, date: "2025년 4월 14일", 
+    keywords: ["AI", "충남대", "컴퓨터융합", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI 세미나", type: "ai_seminar", venue: "KAIST 전기및전자공학부", year: 2024, date: "2024년 12월 18일", 
+    keywords: ["AI", "KAIST", "전기전자", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI 세미나", type: "ai_seminar", venue: "경희대학교(국제캠퍼스) 정보전자신소재공학과", year: 2024, date: "2024년 11월 29일", 
+    keywords: ["AI", "경희대", "국제캠퍼스", "정보전자신소재", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "AI 세미나", type: "ai_seminar", venue: "KAIST 전기및전자공학부", year: 2024, date: "2024년 11월 28일", 
+    keywords: ["AI", "KAIST", "전기전자", "seminar", "세미나", "강연", "초청강연",
+               "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 },
+  { title: "BK21 FOUR AI 세미나", type: "bk21_four", venue: "전북대학교 JIANT-IT 인재양성 사업단", year: 2023, date: "2023년 6월 1일", 
+    keywords: ["AI", "전북대", "JIANT", "BK21", "인재양성", "seminar", "세미나", "강연", "초청강연",
                "강연료", "50만원", "500000", "비용", "얼마", "1시간 30분"], fee: 500000 }
 ];
 
@@ -794,7 +806,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
           
           // Check if message contains university names  
-          const unis = ['kaist', '카이스트', '경북대', '충남대', '부경대', '포항공대', '연세대', '서강대', '성균관대'];
+          const unis = ['kaist', '카이스트', '경북대', '충남대', '부경대', '경희대', '전북대', '한국과학영재학교', '경상국립대', '고려대', '유성구청'];
           for (const uni of unis) {
             if (lower.includes(uni)) return true;
           }
@@ -1006,7 +1018,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // Handle seminar count queries specifically
         if (seminarCountQuery) {
-          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 2025, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           // Only return seminar titles and venues, no years to avoid "25" confusion
           searchResults = TALKS_DATABASE.map(t => 
             `[세미나] ${t.title} - ${t.venue}`
@@ -1083,7 +1095,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           /(목록|리스트|전체|전부|보여)/.test(lowerMsg)
         )) {
           // Force seminar count response without years to avoid "25" confusion
-          deterministicReply = `총 9회의 초청 세미나를 진행했습니다. 부경대, KAIST, 충남대, 경북대, 서강대, 성균관대, 포항공대, 연세대 등에서 강연했습니다.`;
+          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 2025, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           searchResults = TALKS_DATABASE.map(t => 
             `[세미나] ${t.title} - ${t.venue}`
           );
@@ -1113,18 +1125,18 @@ ${recent || '(이전 대화 없음)'}
 검색 결과:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
 
 중요 사실 정보 (반드시 정확하게 사용):
-- 초청 세미나: 총 9회 진행 (2023-2025년) - 세미나 개수를 물으면 "9회"라고 답변
+- 초청 세미나: 총 13회 진행 (2023-2025년) - 세미나 개수를 물으면 "13회"라고 답변
 - 세미나 강연료: 1회당 50만원, 약 1시간 30분 진행
-- 세미나 대학: 부경대(2025.2), KAIST(2025.1), 충남대, 경북대, 서강대, 성균관대, 포항공대(2023.11), 연세대(2023.10)
+- 주요 세미나: 경상국립대(2025.8), BIEN 2025(2025.8), 유성구청(2025.8), 고려대(2025.7-8), 부경대(2025.5), KAIST, 한국과학영재학교, 경북대, 충남대, 경희대(2024.11), 전북대(2023.6)
 - 논문: 총 25편의 국제저널 발표 - 논문 개수를 물으면 "25편"이라고 답변
 - 주요 공동연구자: 최준균, 이주형, 황강욱, 배소희, 오현택 교수
 
 답변 규칙:
-1) 세미나/강연 개수 → 반드시 "9회" 또는 "아홉 번" (25 절대 금지!)
-2) 논문 개수 → 반드시 "25편" (9 절대 금지!)
+1) 세미나/강연 개수 → 반드시 "13회" 또는 "열세 번" (25 절대 금지!)
+2) 논문 개수 → 반드시 "25편" (13 절대 금지!)
 3) 강연료 → "50만원" (5만원 절대 금지!)
 4) 세미나 시간 → "1시간 30분" 또는 "1.5시간"
-5) 검색 결과에 세미나가 있으면 개수는 9, 논문이 있으면 개수는 25`;
+5) 검색 결과에 세미나가 있으면 개수는 13, 논문이 있으면 개수는 25`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
