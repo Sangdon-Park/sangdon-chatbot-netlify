@@ -742,7 +742,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
 사용자: ${message}`;
 
         const actionResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -751,7 +751,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
                 parts: [{ text: actionPrompt }]
               }],
               generationConfig: {
-                temperature: 0.3,
+                temperature: 0.1,
                 maxOutputTokens: 200
               }
             })
@@ -1116,32 +1116,27 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
-        const finalPrompt = `당신은 박상돈 본인입니다. 아래 검색 결과를 활용하여 사용자 질문에 답변하세요.
+        const finalPrompt = `당신은 박상돈입니다.
 
 사용자 질문: ${message}
 
-이전 대화(최신순):
-${recent || '(이전 대화 없음)'}
+검색된 자료:${searchResults && searchResults.length ? `\n${searchResults.join('\n')}` : '\n(관련 결과 없음)'}
 
-검색 결과:${searchResults && searchResults.length ? `\n- ${searchResults.join('\n- ')}` : '\n(관련 결과 없음)'}
+핵심 규칙:
+- 사용자가 물어본 것만 답하세요
+- 검색 결과와 관련된 내용만 언급하세요  
+- 묻지 않은 정보는 절대 언급하지 마세요
+- 간결하고 명확하게 답변하세요
 
-중요 사실 정보 (반드시 정확하게 사용):
-- 오늘 날짜: 2025년 8월 27일
-- 초청 세미나: 총 13회 진행 완료 (2023-2025년) - 세미나 개수를 물으면 "13회 진행했습니다"
-- 세미나 강연료: 1회당 50만원, 약 1시간 30분 진행
-- 완료된 세미나: 경상국립대(8/25 완료), BIEN(8/21 완료), 유성구청(8/11 완료), 고려대(7/31, 8/6 완료) - 모두 과거형으로
-- 논문: 총 25편의 국제저널 발표 - 논문 개수를 물으면 "25편"이라고 답변
-- 주요 공동연구자: 최준균, 이주형, 황강욱, 배소희, 오현택 교수
+참고 (필요시에만 사용):
+- 오늘: 2025년 8월 27일 (이미 지난 세미나는 과거형)
+- 세미나 총 13회, 논문 총 25편
+- 세미나 1회 50만원, 1시간 30분
 
-답변 규칙:
-1) 세미나/강연 개수 → 반드시 "13회" 또는 "열세 번" (25 절대 금지!)
-2) 논문 개수 → 반드시 "25편" (13 절대 금지!)
-3) 강연료 → "50만원" (5만원 절대 금지!)
-4) 세미나 시간 → "1시간 30분" 또는 "1.5시간"
-5) 검색 결과에 세미나가 있으면 개수는 13, 논문이 있으면 개수는 25`;
+직접적이고 자연스럽게 답변하세요.`;
 
         const finalResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1150,8 +1145,8 @@ ${recent || '(이전 대화 없음)'}
                 parts: [{ text: finalPrompt }]
               }],
               generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 8192
+                temperature: 0.2,
+                maxOutputTokens: 500
               }
             })
           }
