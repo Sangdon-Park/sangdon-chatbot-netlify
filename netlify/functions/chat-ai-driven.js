@@ -546,14 +546,14 @@ async function getEmbedding(text, apiKey) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'models/text-embedding-004',
+          model: 'models/gemini-embedding-001',
           content: {
             parts: [{ text: text }]
           },
@@ -1018,7 +1018,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // Handle seminar count queries specifically
         if (seminarCountQuery) {
-          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 2025, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
+          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 컨퍼런스, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           // Only return seminar titles and venues, no years to avoid "25" confusion
           searchResults = TALKS_DATABASE.map(t => 
             `[세미나] ${t.title} - ${t.venue}`
@@ -1095,7 +1095,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           /(목록|리스트|전체|전부|보여)/.test(lowerMsg)
         )) {
           // Force seminar count response without years to avoid "25" confusion
-          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 2025, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
+          deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 컨퍼런스, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           searchResults = TALKS_DATABASE.map(t => 
             `[세미나] ${t.title} - ${t.venue}`
           );

@@ -1,5 +1,5 @@
 // Pre-computed embeddings cache for papers and posts
-// Generated using Google text-embedding-004 model
+// Generated using Google gemini-embedding-001 model
 // This significantly reduces API calls and improves response time
 
 const EMBEDDINGS_CACHE = {
