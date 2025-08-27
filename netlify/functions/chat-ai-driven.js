@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 const { getCachedEmbedding, setCachedEmbedding } = require('./embeddings-cache');
+const { PROFILE_DATABASE } = require('../../profile_database');
 
 // Enhanced database with proper search capability
 const POSTS_DATABASE = [
@@ -1131,6 +1132,16 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         const finalPrompt = `당신은 박상돈입니다.
 
+【프로필 정보】
+◆ 현직: AI 연구 엔지니어, 세이베리 게임즈 (2025.5~현재)
+◆ 학력: 
+  - 박사: KAIST 전기및전자공학부 (2013-2017)
+  - 석사: KAIST 수리과학과 (2011-2013)
+  - 학사: KAIST 수리과학과 (2006-2011, 조기졸업)
+◆ 경력: KAIST 박사후 연구원 (2017.8-2025.4)
+◆ 성과: 세종과학펠로우십 (2022), 국제논문 25편, 초청세미나 13회
+◆ 연락: chaos@sayberrygames.com
+
 이전 대화:
 ${recent || '없음'}
 
@@ -1139,7 +1150,7 @@ ${recent || '없음'}
 검색 결과:
 ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 
-【절대 규칙 - 반드시 지킬 것】
+【핵심 정보 - 반드시 정확히】
 ◆ 세미나: 총 13회 (절대 25 아님)
 ◆ 논문: 총 25편 (절대 13 아님)  
 ◆ 가격: 시간당 50만원
@@ -1165,6 +1176,9 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 
 ▶ 맞춤형 관련:
 → "청중 수준과 관심사에 맞춰 내용을 조정합니다. 초급자는 기초부터, 연구자는 논문 기반 심화 내용까지 가능합니다."
+
+▶ 학력 질문 (졸업/학교/대학/어디서/학력):
+→ "KAIST에서 학사(수리과학, 2006-2011), 석사(수리과학, 2011-2013), 박사(전기및전자공학, 2013-2017)를 받았습니다."
 
 ▶ 대학 날짜:
 - 고려대 → "7월입니다" (2025 붙이지 말것!)
