@@ -1060,64 +1060,13 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           }
         }
         
-        // Handle general seminar inquiry (what is it, how much, etc.)
-        const generalSeminarQuery = (/(궁금|관해|대해|알려|소개|설명|어떤|무엇|뭐야|뭔가)/.test(lowerMsg) && seminarQuery) || 
-                                     (seminarQuery && message.length < 20 && !/(몇|개수|언제|어디|누구)/.test(lowerMsg));
-        
-        if (generalSeminarQuery) {
-          deterministicReply = `제가 진행하는 AI 세미나는 다음과 같습니다:\n\n📚 **세미나 내용**\n- AI 기초 및 최신 트렌드\n- LLM 활용법 (ChatGPT, Claude 등)\n- 연구자를 위한 AI 도구 활용\n- 맞춤형 주제 가능\n\n💰 **비용**\n- 시간당 50만원 (1-2시간 진행)\n- 여러 회차 분할 가능\n\n🎯 **특징**\n- 청중 수준에 맞춘 맞춤형 진행\n- 연구자 대상 시 논문 기반 심화 내용\n- 실습 및 Q&A 포함\n\n📧 **신청 문의**\nchaos@sayberrygames.com\n\n지금까지 13회 진행했으며, KAIST, 고려대, 경북대 등 주요 대학과 기관에서 강연했습니다.`;
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              step: 2,
-              reply: deterministicReply,
-              searchResults: [`[세미나 안내] AI 세미나 - 맞춤형 진행 가능`]
-            })
-          };
-        }
-        
-        // Handle seminar application/request queries
-        const applicationQuery = /(신청|요청|의뢰|부탁|contact|연락|이메일|메일|문의)/.test(lowerMsg) && (seminarQuery || /(AI|세미나|강연)/.test(lowerMsg));
-        
-        if (applicationQuery) {
-          deterministicReply = `AI 세미나를 신청해 주셔서 감사합니다!\n\n세미나 신청 및 문의는 아래 연락처로 부탁드립니다:\n📧 이메일: chaos@sayberrygames.com\n\n신청 시 아래 정보를 알려주시면 맞춤형 세미나를 준비하겠습니다:\n- 기관/회사명\n- 희망 날짜 및 시간\n- 예상 참석 인원\n- 관심 주제 (AI 기초, LLM 활용, 연구자를 위한 AI 등)\n- 청중 수준 (초급/중급/고급)\n\n강연료는 시간당 50만원 기준이며, 1-2시간 진행됩니다. 원하시면 여러 회차로 나누어 진행도 가능합니다.`;
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              step: 2,
-              reply: deterministicReply,
-              searchResults: [`[세미나 신청] 이메일: chaos@sayberrygames.com`]
-            })
-          };
-        }
-        
-        // Handle seminar pricing queries specifically
-        const pricingQuery = /(강연료|비용|얼마|fee|가격|금액|돈)/.test(lowerMsg) && (seminarQuery || /(AI|세미나|강연)/.test(lowerMsg));
-        
-        if (pricingQuery) {
-          deterministicReply = `AI 세미나 강연료는 시간당 50만원 기준으로, 1회당 대략 50만원입니다. 보통 1시간에서 2시간 사이로 진행되며, 원하시면 여러 회차로 나누어 진행도 가능합니다.\n\n각 청중들에게 맞춤형으로 진행되기 때문에 세미나 범위와 내용은 그에 따라 결정됩니다. 특히 연구자를 위한 AI 세미나는 해당 연구자의 연구 논문에 맞춤형으로 더 자세하게 진행하므로, 미리 관련 자료를 주시면 더 효과적인 세미나를 준비할 수 있습니다.`;
-          searchResults = [`[세미나 정보] 시간당 50만원 기준 / 1-2시간 진행 / 맞춤형 세미나 가능`];
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              step: 2,
-              reply: deterministicReply,
-              searchResults: searchResults
-            })
-          };
-        }
-        
-        // Handle seminar count queries specifically
+        // Keep only essential deterministic responses for accuracy
+        // Count queries need deterministic answers to avoid hallucination
         if (seminarCountQuery) {
           deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 컨퍼런스, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
-          // Only return seminar titles and venues, no years to avoid "25" confusion
-          searchResults = TALKS_DATABASE.map(t => 
+          searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
             `[세미나] ${t.title} - ${t.venue}`
           );
-          // Return immediately to prevent paper results from being added
           return {
             statusCode: 200,
             headers,
@@ -1204,24 +1153,44 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
-        const finalPrompt = `당신은 박상돈입니다. 사용자 질문에 간결하게 답변하세요.
+        const finalPrompt = `당신은 박상돈입니다. 
 
-${recent ? `이전 대화 (중요: 문맥을 고려하여 답변):\n${recent}\n` : ''}
+${recent ? `이전 대화:\n${recent}\n` : ''}
 사용자: ${message}
 
 검색 결과:
 ${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 결과 없음)'}
 
-답변 지침:
-0. 이전 대화 문맥을 반드시 고려하세요 (예: "얼마야?"는 이전에 언급된 세미나 비용을 묻는 것)
-1. 사용자가 물어본 것에만 답하세요
-2. "AI 세미나에 대해 궁금" → 세미나 소개, 비용, 신청 방법 안내 (과거 세미나 목록 나열 금지)
-3. 고려대 세미나는 이미 완료 (7/31, 8/6 진행함)
-4. 세미나 개수 질문 → "13회 진행했습니다"
-5. 세미나 비용/강연료 질문 → "시간당 50만원 기준, 1-2시간 진행, 맞춤형 가능"
-6. 세미나 신청/문의 → "chaos@sayberrygames.com으로 연락 주세요"
-7. 간결하고 자연스럽게 답변
-8. 과거 세미나 목록을 보여달라고 하지 않는 한 나열하지 마세요
+중요한 정보:
+- 총 13회 세미나 진행 (2023-2025)
+- 강연료: 시간당 50만원 (보통 1-2시간)
+- 신청 문의: chaos@sayberrygames.com
+- 세미나 내용: AI 기초, LLM 활용법, 연구자를 위한 맞춤형 AI 세미나
+- 특징: 청중 수준별 맞춤형, 연구자는 논문 기반 심화 가능
+
+사용자 의도별 답변 방법:
+
+1. "AI 세미나에 대해 궁금합니다" 류의 일반 문의:
+   → 세미나가 무엇인지 설명 (내용, 비용, 신청 방법 포함)
+   → 과거 세미나 목록 나열하지 말 것
+   → 예: "AI 기초부터 LLM 활용까지 맞춤형으로 진행합니다. 시간당 50만원이며..."
+
+2. "세미나 신청하고 싶어요" 류의 신청 문의:
+   → 신청 방법과 이메일 안내
+   → 과거 세미나 중 어떤 걸 신청할지 묻지 말 것
+   → 예: "chaos@sayberrygames.com으로 연락 주시면..."
+
+3. "세미나 얼마예요?" 류의 비용 문의:
+   → 시간당 50만원, 1-2시간, 맞춤형 가능 설명
+
+4. "세미나 몇 번 했어?" 류의 개수 문의:
+   → "13회 진행했습니다" + 주요 기관 언급
+
+5. "고려대 세미나" 같은 특정 세미나 문의:
+   → 해당 세미나 정보만 답변
+
+검색 결과에 과거 세미나 목록이 있어도, 사용자가 명시적으로 요청하지 않는 한 나열하지 마세요.
+간결하고 도움이 되는 답변을 하세요.
 
 한국어로 답변하세요.`;
 
