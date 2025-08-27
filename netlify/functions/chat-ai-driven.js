@@ -944,13 +944,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const countIntent = /몇|개수|얼마나|how many/.test(lowerMsg) || /몇|개수|얼마나|how many/.test((query || '').toLowerCase());
         // Detect collaborator intent (누구와 가장 많이 같이 썼는지 등)
         const collaboratorIntent = /(공저|공동연구|같이|함께|coauthor|collaborator|누구)/.test(lowerMsg);
-        // Detect list-all intent
-        const listIntent = (
-          /(모두|전체|전부|다)\s*(나열|적어|써|목록|리스트|보여|열거|정리)/.test(lowerMsg)
-          || /(나열|목록|리스트|보여줘|보여봐|열거|정리|읊어|읊어봐)/.test(lowerMsg)
-          || /\d+\s*편/.test(lowerMsg)
-          || /논문\s*(전부|전체|다)/.test(lowerMsg)
-        );
+        // Detect list-all intent - removed to let AI handle naturally
+        const listIntent = false;
         
         // Detect seminar/talk specific queries
         const seminarQuery = /(세미나|강연|초청|talk|seminar|lecture|강의)/.test(lowerMsg);
@@ -1105,30 +1100,12 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           if (matchedPapers.length === 0) {
             deterministicReply = `전체 국제저널 기준으로 ${PAPERS_DATABASE.length}편입니다.`;
           }
-        } else if (collaboratorIntent) {
-          // Tally collaborators from dataset authors
+        } else if (collaboratorIntent && /가장\s*많이/.test(lowerMsg)) {
+          // Only handle "who did you write the most papers with" deterministically
           const specificName = extractCollaboratorNameFromMessage();
           let { topName, count, list } = computeCollaboratorsAndList(specificName);
           
-          // If asking to show all papers with a collaborator
-          if ((listIntent || /다\s*(보여|나열|써|적어)/.test(lowerMsg)) && specificName && list.length > 0) {
-            deterministicReply = `${topName}님과 함께한 논문은 총 ${list.length}편입니다:\n\n${list.join('\n')}`;
-            searchResults = list;
-            return {
-              statusCode: 200,
-              headers,
-              body: JSON.stringify({
-                step: 2,
-                reply: deterministicReply,
-                searchResults: searchResults
-              })
-            };
-          } else if (topName) {
-            if (listIntent) {
-              // Provide deterministic list
-              deterministicReply = `${topName}님과 함께한 논문은 총 ${list.length}편입니다. 아래 목록을 참고하세요.`;
-              searchResults = list;
-            } else {
+          if (topName) {
               deterministicReply = `가장 많이 함께 논문을 쓴 분은 ${topName}님으로, ${count}편입니다.`;
               // Also show top-3 collaborators as context
               // Recompute counts for top-3 view
