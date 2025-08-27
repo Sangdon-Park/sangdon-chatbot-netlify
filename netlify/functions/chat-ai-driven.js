@@ -717,7 +717,9 @@ exports.handler = async (event, context) => {
 이전 대화(최신순):
 ${recent || '(이전 대화 없음)'}
 
-중요: 다음은 모두 SEARCH입니다:
+중요: 
+1. 문맥 의존적 질문(예: "얼마야?", "언제야?", "몇 개야?")은 이전 대화 문맥을 참고하여 QUERY를 구체화하세요
+2. 다음은 모두 SEARCH입니다:
 - 논문/저널/publication 관련
 - 초청강연/세미나/강연료 관련  
 - 공동연구자/저자 관련
@@ -733,6 +735,11 @@ Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH, QUERY: 황강욱
 Q: "논문 몇 편?" → ACTION: SEARCH, QUERY: 논문 개수 통계
 Q: "안녕하세요" → ACTION: CHAT
 Q: "감사합니다" → ACTION: CHAT
+
+문맥 의존적 예시 (이전 대화를 참고):
+이전: "고려대 세미나?" → 현재: "언제였어?" → ACTION: SEARCH, QUERY: 고려대 세미나 날짜
+이전: "AI 세미나에 대해" → 현재: "얼마야?" → ACTION: SEARCH, QUERY: AI 세미나 강연료
+이전: "세미나 했어?" → 현재: "시간은?" → ACTION: SEARCH, QUERY: 세미나 시간
 
 반드시 이 형식으로 응답:
 ACTION: [SEARCH 또는 CHAT]
@@ -1135,12 +1142,14 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
         const finalPrompt = `당신은 박상돈입니다. 사용자 질문에 간결하게 답변하세요.
 
+${recent ? `이전 대화 (중요: 문맥을 고려하여 답변):\n${recent}\n` : ''}
 사용자: ${message}
 
 검색 결과:
 ${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 결과 없음)'}
 
 답변 지침:
+0. 이전 대화 문맥을 반드시 고려하세요 (예: "얼마야?"는 이전에 언급된 세미나 비용을 묻는 것)
 1. 사용자가 물어본 것에만 답하세요
 2. AI 세미나 질문 → 세미나 정보만 답변 (논문이나 공동연구자 언급 금지)
 3. 고려대 세미나는 이미 완료 (7/31, 8/6 진행함)
