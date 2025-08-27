@@ -1025,32 +1025,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         // Remove hardcoded responses - let AI handle context-dependent queries naturally
         
         // Keep only essential deterministic responses for accuracy
-        // Handle complex/compound questions first
-        if (/(얼마.*몇\s*번|몇\s*번.*얼마)/.test(lowerMsg)) {
-          // 복합 질문: 가격과 횟수 모두
-          deterministicReply = `시간당 50만원이고, 총 13회의 초청 세미나를 진행했습니다.`;
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              step: 2,
-              reply: deterministicReply,
-              searchResults: null
-            })
-          };
-        } else if (/(논문.*세미나|세미나.*논문).*몇/.test(lowerMsg)) {
-          // 복합 질문: 논문과 세미나 개수
-          deterministicReply = `논문은 25편, 세미나는 13회 진행했습니다.`;
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              step: 2,
-              reply: deterministicReply,
-              searchResults: null
-            })
-          };
-        } else if (seminarCountQuery) {
+        // Count queries need deterministic answers to avoid AI hallucination
+        if (seminarCountQuery) {
           deterministicReply = `총 13회의 초청 세미나를 진행했습니다. 경상국립대, BIEN 컨퍼런스, 유성구청, 고려대, 부경대, KAIST, 한국과학영재학교, 경북대, 충남대, 경희대, 전북대 등에서 강연했습니다.`;
           searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
             `[세미나] ${t.title} - ${t.venue}`
@@ -1195,9 +1171,12 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 - 경상국립대 → "8월 25일입니다" (2025 붙이지 말것!)
 - KAIST → "2024년과 2025년에 진행했습니다"
 
-▶ 복합 질문 - 각각 모두 답변:
+▶ 복합 질문 - 반드시 각 부분 모두 답변!!!:
 "얼마고 몇번?" → "시간당 50만원이고, 총 13회 진행했습니다."
+"세미나 얼마고 몇 번?" → "시간당 50만원이고, 총 13회 진행했습니다."
 "논문이랑 세미나?" → "논문 25편, 세미나 13회입니다."
+"논문은 몇 편이고 세미나는 몇 번?" → "논문 25편, 세미나 13회입니다."
+복합 질문은 반드시 모든 부분에 답변할 것!
 
 ▶ 짧은 질문:
 - "얼마?" → "시간당 50만원입니다."
@@ -1216,7 +1195,12 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 ✗ 불필요한 설명 금지
 ✗ "어떤 세미나 신청?" 묻지 말것
 
-간결하고 정확하게만 답변.`;
+간결하고 정확하게만 답변.
+
+【최우선 규칙】
+만약 질문에 여러 개가 포함되면 (예: "얼마고 몇번?") 반드시 모든 부분 답변!
+경상국립대 날짜에서 "25일"이라고 하면 절대 "2025년"과 헷갈리지 말것!
+"8월 25일"은 날짜이지 개수가 아님!`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
