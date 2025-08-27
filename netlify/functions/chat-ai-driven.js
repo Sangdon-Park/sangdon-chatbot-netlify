@@ -1122,7 +1122,6 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
               }
               const top3 = Array.from(tally.entries()).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=> `${n}: ${c}편`);
               searchResults = top3;
-            }
           } else {
             // Fallback: use knowledge base collaborator stats if available
             const kbCollab = (KNOWLEDGE_BASE?.publications?.by_collaborator) || {};
