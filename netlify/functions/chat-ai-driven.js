@@ -1022,43 +1022,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
         let deterministicReply = null;
         
-        // Handle short context-dependent queries by checking recent history
-        const isShortContextQuery = message.length < 10 && (
-          /(시간|얼마|언제|몇|어디|뭐|논문|세미나)/.test(lowerMsg)
-        );
-        
-        if (isShortContextQuery && history && history.length > 0) {
-          // Check recent context for what topic we're discussing
-          const recentContext = history.slice(-2).map(h => h.content).join(' ').toLowerCase();
-          
-          // Time-related follow-up
-          if (/(시간|몇시|얼마나)/.test(lowerMsg) && /(세미나|강연)/.test(recentContext)) {
-            deterministicReply = `1시간 30분입니다. 모든 세미나가 동일한 시간으로 진행됩니다.`;
-            return {
-              statusCode: 200,
-              headers,
-              body: JSON.stringify({
-                step: 2,
-                reply: deterministicReply,
-                searchResults: [`[세미나 정보] 시간: 1시간 30분`]
-              })
-            };
-          }
-          
-          // Paper count follow-up after seminar discussion
-          if (/(논문)/.test(lowerMsg) && /(세미나|강연)/.test(recentContext)) {
-            deterministicReply = `논문은 총 25편입니다. 세미나와는 별개로 국제저널 논문 25편을 발표했습니다.`;
-            return {
-              statusCode: 200,
-              headers,
-              body: JSON.stringify({
-                step: 2,
-                reply: deterministicReply,
-                searchResults: null
-              })
-            };
-          }
-        }
+        // Remove hardcoded responses - let AI handle context-dependent queries naturally
         
         // Keep only essential deterministic responses for accuracy
         // Count queries need deterministic answers to avoid hallucination
@@ -1161,35 +1125,52 @@ ${recent ? `이전 대화:\n${recent}\n` : ''}
 검색 결과:
 ${searchResults && searchResults.length ? searchResults.join('\n') : '(관련 결과 없음)'}
 
-중요한 정보:
-- 총 13회 세미나 진행 (2023-2025)
-- 강연료: 시간당 50만원 (보통 1-2시간)
-- 신청 문의: chaos@sayberrygames.com
-- 세미나 내용: AI 기초, LLM 활용법, 연구자를 위한 맞춤형 AI 세미나
-- 특징: 청중 수준별 맞춤형, 연구자는 논문 기반 심화 가능
+핵심 정보 (매우 중요):
+- 세미나: 총 13회 진행 (2023-2025)
+- 논문: 총 25편 (국제저널)
+- 강연료: 시간당 50만원 
+- 세미나 시간: 보통 1시간~2시간 (평균 1시간 30분)
+- 신청: chaos@sayberrygames.com
+- 내용: AI 기초, LLM 활용법, 연구자 맞춤형 세미나
+- 특징: 청중 수준별 맞춤형, 논문 기반 심화 가능
 
-사용자 의도별 답변 방법:
+매우 중요한 답변 규칙:
 
-1. "AI 세미나에 대해 궁금합니다" 류의 일반 문의:
-   반드시 포함: ① 세미나 내용 (AI 기초, LLM 활용) ② 비용 (시간당 50만원) ③ 신청 방법 (chaos@sayberrygames.com)
-   금지: 과거 세미나 목록 나열
+1. "AI 세미나에 대해 궁금합니다/물어볼게 있습니다" 등 일반 문의:
+   반드시 첫 문장에서 간단히 소개하고 아래 3가지 모두 포함:
+   ✅ 세미나 내용: AI 기초, LLM 활용법, 맞춤형 가능
+   ✅ 비용: 시간당 50만원 (1-2시간 진행)  
+   ✅ 신청: chaos@sayberrygames.com으로 연락
+   ❌ 과거 세미나 목록 나열 금지
+   ❌ "논문" 언급 금지 (세미나 질문이므로)
+
+2. "1회당 얼마죠?/세미나 얼마예요?" 등 비용 문의:
+   반드시: "시간당 50만원, 보통 1-2시간 진행 (평균 1시간 30분), 맞춤형 가능"
    
-2. "세미나 신청하고 싶어요" 류의 신청 문의:
-   반드시: "chaos@sayberrygames.com으로 연락 주시면 안내해드리겠습니다"
-   필요 정보 안내: 기관명, 희망 날짜, 참석 인원, 관심 주제
-   금지: "어떤 세미나를 신청하실건가요?" 같은 질문
+3. "신청하고 싶어요" 등 신청 문의:
+   반드시: "chaos@sayberrygames.com으로 연락주시면 안내해드리겠습니다"
+   추가: 기관명, 희망날짜, 인원, 주제를 알려달라고 안내
+   ❌ "어떤 세미나 신청?" 질문 금지
 
-3. "세미나 얼마예요?" 류의 비용 문의:
-   반드시 언급: "시간당 50만원", "1-2시간 진행", "맞춤형 가능"
+4. "세미나 몇 번 했어?" 등 횟수 문의:
+   정확히: "총 13회 진행했습니다" + 주요 기관 몇 개만 언급
 
-4. "세미나 몇 번 했어?" 류의 개수 문의:
-   정확히: "총 13회 진행했습니다"
+5. "시간은?" 등 대화 문맥상 짧은 질문:
+   이전 대화에서 세미나 얘기 중이면: "보통 1-2시간, 평균 1시간 30분입니다"
+   
+6. 특정 대학 세미나 문의:
+   해당 정보만 + 필요시 비용/신청 안내
 
-5. 특정 세미나 문의 (예: "고려대 세미나"):
-   해당 세미나 정보만 답변
+7. "논문 몇 편?" 질문:
+   "국제저널 논문 25편입니다" (세미나와 구분)
 
-검색 결과에 과거 세미나 목록이 있어도, 사용자가 명시적으로 요청하지 않는 한 나열하지 마세요.
-간결하고 도움이 되는 답변을 하세요.
+8. 고려대/경상국립대 세미나 날짜:
+   - 고려대: 2025년 7월
+   - 경상국립대: 2025년 8월 25일 
+   정확한 날짜 제공
+
+검색 결과가 있어도 사용자가 목록을 요청하지 않으면 나열 금지.
+간결하고 핵심만 답변.
 
 한국어로 답변하세요.`;
 
