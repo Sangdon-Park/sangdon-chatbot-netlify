@@ -931,9 +931,12 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             // Search primarily in talks/seminars
             searchResults = await embeddingSearch(query || message, [], [], 15, true);
           } else if (isPublicationIntent(message, query)) {
-            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 25);
+            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 25, false); // Don't include talks for paper queries
+          } else if (/논문/.test(message.toLowerCase()) || /논문/.test((query || '').toLowerCase())) {
+            // If message contains "논문", search only papers
+            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, [], 25, false);
           } else {
-            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 20, true); // Include talks
+            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 20, true); // Include talks for general queries
           }
           console.log('Embedding search results:', searchResults);
         }
