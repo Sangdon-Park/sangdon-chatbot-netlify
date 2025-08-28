@@ -446,8 +446,90 @@ function computeMatchScore(tokens, hayLower) {
 }
 
 // Embedding-based semantic search using Google's text-embedding API
+// Keyword prefilter to reduce candidate set before embedding
+function keywordPrefilter(query, papers, posts, talks, k = 20) {
+  const baseTokens = tokenize(query || '');
+  const tokens = expandTokensWithSynonyms(baseTokens);
+  const scored = [];
+
+  const weigh = (hits, fieldWeight) => hits * fieldWeight;
+
+  // Papers: title(3), journal(2), authors(2), keywords(2), year(1)
+  for (const p of papers || []) {
+    const hayTitle = (p.title || '').toLowerCase();
+    const hayJournal = (p.journal || '').toLowerCase();
+    const hayAuthors = (Array.isArray(p.authors) ? p.authors.join(' ') : '').toLowerCase();
+    const hayKeywords = (Array.isArray(p.keywords) ? p.keywords.join(' ') : '').toLowerCase();
+    const hayYear = String(p.year || '').toLowerCase();
+    let score = 0;
+    for (const t of tokens) {
+      if (hayTitle.includes(t)) score += weigh(1, 3);
+      if (hayJournal.includes(t)) score += weigh(1, 2);
+      if (hayAuthors.includes(t)) score += weigh(1, 2);
+      if (hayKeywords.includes(t)) score += weigh(1, 2);
+      if (hayYear && hayYear.includes(t)) score += weigh(1, 1);
+    }
+    if (score > 0) scored.push({ type: 'paper', data: p, score });
+  }
+
+  // Posts: title(3), keywords(2), description(1), year(1)
+  for (const a of posts || []) {
+    const title = (a.title || '').toLowerCase();
+    const desc = (a.description || '').toLowerCase();
+    const kw = (Array.isArray(a.keywords) ? a.keywords.join(' ') : '').toLowerCase();
+    const year = String(a.year || '').toLowerCase();
+    let score = 0;
+    for (const t of tokens) {
+      if (title.includes(t)) score += weigh(1, 3);
+      if (kw.includes(t)) score += weigh(1, 2);
+      if (desc.includes(t)) score += weigh(1, 1);
+      if (year && year.includes(t)) score += weigh(1, 1);
+    }
+    if (score > 0) scored.push({ type: 'post', data: a, score });
+  }
+
+  // Talks: title(3), venue(2), keywords(2), year(1)
+  for (const t of talks || []) {
+    const title = (t.title || '').toLowerCase();
+    const venue = (t.venue || '').toLowerCase();
+    const kw = (Array.isArray(t.keywords) ? t.keywords.join(' ') : '').toLowerCase();
+    const year = String(t.year || '').toLowerCase();
+    let score = 0;
+    for (const tk of tokens) {
+      if (title.includes(tk)) score += weigh(1, 3);
+      if (venue.includes(tk)) score += weigh(1, 2);
+      if (kw.includes(tk)) score += weigh(1, 2);
+      if (year && year.includes(tk)) score += weigh(1, 1);
+    }
+    if (score > 0) scored.push({ type: t.type || 'seminar', data: t, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, k);
+}
+
+// In-memory doc embedding cache across warm invocations
+const DOC_EMBED_CACHE = new Map(); // key: string, value: Float32Array
+
+async function getDocEmbeddingCached(key, text, apiKey) {
+  if (DOC_EMBED_CACHE.has(key)) return DOC_EMBED_CACHE.get(key);
+  const emb = await getEmbedding(text, apiKey);
+  if (emb) DOC_EMBED_CACHE.set(key, emb);
+  return emb;
+}
+
+// Map known post titles to site URLs for better UX
+function getUrlForPost(title) {
+  const map = new Map([
+    ['Serena MCP 설치 가이드', '/articles/serena-mcp-guide.html'],
+    ['AI LLM에 미쳐있던 8개월', '/articles/ai-llm-8months-passion.html'],
+    ['AI 없이는 불가능했던 동대표 활동', '/articles/ai-apt-representative.html']
+  ]);
+  return map.get(title) || null;
+}
+
 async function embeddingSearch(query, papers, posts, maxResults = 20, includeTalks = true) {
-  if (!query || typeof query !== 'string') return [];
+  if (!query || typeof query !== 'string') return { labels: [], detailed: [] };
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) {
@@ -466,69 +548,50 @@ async function embeddingSearch(query, papers, posts, maxResults = 20, includeTal
 
     const results = [];
 
-    // Process papers
-    for (const p of papers) {
-      const docText = [
-        p.title || '',
-        p.journal || '',
-        String(p.year || ''),
-        ...(p.authors || []),
-        ...(p.keywords || [])
-      ].join(' ');
-      
-      const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
-      if (docEmbedding) {
-        const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-        if (similarity > 0.25) { // Lowered threshold for better recall
-          const label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
-          results.push({ label, score: similarity, type: 'paper', data: p });
-        }
-      }
-    }
+    // Prefilter candidates to reduce embedding calls
+    const candidates = keywordPrefilter(query, papers, posts, includeTalks ? TALKS_DATABASE : [], 24);
 
-    // Process posts
-    for (const a of posts) {
-      const docText = [
-        a.title || '',
-        a.description || '',
-        ...(a.keywords || [])
-      ].join(' ');
-      
-      const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
-      if (docEmbedding) {
-        const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-        if (similarity > 0.25) { // Lowered threshold for posts
-          const label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
-          results.push({ label, score: similarity, type: 'post', data: a });
-        }
+    for (const c of candidates) {
+      let label = '';
+      let docText = '';
+      let key = '';
+      if (c.type === 'paper') {
+        const p = c.data;
+        label = `[논문] ${p.title}${p.year ? ` (${p.year})` : ''}${p.journal ? ` - ${p.journal}` : ''}`;
+        docText = [p.title||'', p.journal||'', String(p.year||''), ...(p.authors||[]), ...(p.keywords||[])].join(' ');
+        key = `paper:${p.title}:${p.year}`;
+      } else if (c.type === 'post') {
+        const a = c.data;
+        label = `[콘텐츠] ${a.title}${a.year ? ` (${a.year})` : ''}`;
+        docText = [a.title||'', a.description||'', ...(a.keywords||[]), String(a.year||'')].join(' ');
+        key = `post:${a.title}:${a.year}`;
+      } else {
+        const t = c.data;
+        const typeLabel = t.type === 'invited_talk' ? '초청강연' : '세미나';
+        label = `[${typeLabel}] ${t.title} - ${t.venue} (${t.year})`;
+        docText = [t.title||'', t.venue||'', t.location||'', String(t.year||''), ...(t.keywords||[])].join(' ');
+        key = `talk:${t.title}:${t.venue}:${t.year}`;
       }
-    }
-
-    // Process talks and seminars
-    if (includeTalks) {
-      for (const t of TALKS_DATABASE) {
-        const docText = [
-          t.title || '',
-          t.venue || '',
-          t.location || '',
-          String(t.year || ''),
-          ...(t.keywords || [])
-        ].join(' ');
-        
-        const docEmbedding = await getEmbedding(docText, GEMINI_API_KEY);
-        if (docEmbedding) {
-          const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
-          if (similarity > 0.2) { // Lower threshold for talks to improve recall
-            const typeLabel = t.type === 'invited_talk' ? '초청강연' : '세미나';
-            const label = `[${typeLabel}] ${t.title} - ${t.venue} (${t.year})`;
-            results.push({ label, score: similarity, type: t.type, data: t });
-          }
-        }
+      const docEmbedding = await getDocEmbeddingCached(key, docText, GEMINI_API_KEY);
+      if (!docEmbedding) continue;
+      const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
+      // Slightly lower threshold for recall, keep top by sorting
+      if (similarity > 0.18) {
+        results.push({ label, score: similarity, type: c.type, data: c.data });
       }
     }
 
     results.sort((a, b) => b.score - a.score);
-    return results.slice(0, maxResults).map(r => r.label);
+    const top = results.slice(0, maxResults);
+    return {
+      labels: top.map(r => r.label),
+      detailed: top.map(r => {
+        let url = null;
+        if (r.type === 'post') url = getUrlForPost(r.data.title) || null;
+        if (r.type === 'paper') url = '/publications.html';
+        return { type: r.type || 'result', item: { title: r.label, url, score: Number(r.score.toFixed(3)) } };
+      })
+    };
 
   } catch (error) {
     console.error('Embedding search error:', error);
@@ -547,19 +610,18 @@ async function getEmbedding(text, apiKey) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'models/gemini-embedding-001',
+          model: 'models/text-embedding-004',
           content: {
             parts: [{ text: text }]
           },
-          taskType: 'RETRIEVAL_DOCUMENT',
-          outputDimensionality: 768
+          taskType: 'RETRIEVAL_DOCUMENT'
         })
       }
     );
@@ -646,7 +708,11 @@ function keywordFallbackSearch(query, papers, posts, maxResults = 5, includeTalk
   }
 
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, maxResults).map(s => s.label);
+  const top = scored.slice(0, maxResults);
+  return {
+    labels: top.map(s => s.label),
+    detailed: top.map(s => ({ type: 'result', item: { title: s.label, url: null, score: s.score } }))
+  };
 }
 
 function isPublicationIntent(message, query) {
@@ -956,7 +1022,8 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const { message, history = [], action, query } = JSON.parse(event.body);
 
         // Perform lightweight RAG over local KB
-        let searchResults = null;
+        let searchResults = null; // string labels (for prompt)
+        let searchResultsDetailed = null; // structured for UI
         if (action === 'SEARCH') {
           // Build a flat posts array from POSTS_DATABASE
           const postsFlat = POSTS_DATABASE.map(p => ({
@@ -971,15 +1038,17 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           const isSeminarQuery = /(세미나|강연|초청|talk|seminar|lecture|강의)/.test((message + ' ' + query).toLowerCase());
           
           if (isSeminarQuery) {
-            // Search primarily in talks/seminars
-            searchResults = await embeddingSearch(query || message, [], [], 15, true);
+            const res = await embeddingSearch(query || message, [], [], 15, true);
+            searchResults = res.labels; searchResultsDetailed = res.detailed;
           } else if (isPublicationIntent(message, query)) {
-            searchResults = await embeddingSearch(query || '', PAPERS_DATABASE, [], 25, false); // Don't include talks for paper queries
+            const res = await embeddingSearch(query || '', PAPERS_DATABASE, [], 25, false);
+            searchResults = res.labels; searchResultsDetailed = res.detailed;
           } else if (/논문/.test(message.toLowerCase()) || /논문/.test((query || '').toLowerCase())) {
-            // If message contains "논문", search only papers
-            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, [], 25, false);
+            const res = await embeddingSearch(query || message, PAPERS_DATABASE, [], 25, false);
+            searchResults = res.labels; searchResultsDetailed = res.detailed;
           } else {
-            searchResults = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 20, true); // Include talks for general queries
+            const res = await embeddingSearch(query || message, PAPERS_DATABASE, postsFlat, 20, true);
+            searchResults = res.labels; searchResultsDetailed = res.detailed;
           }
           console.log('Embedding search results:', searchResults);
         }
@@ -1074,13 +1143,17 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           searchResults = TALKS_DATABASE.slice(0, 5).map(t => 
             `[세미나] ${t.title} - ${t.venue}`
           );
+          const searchResultsDetailed = Array.isArray(searchResults) && searchResults.length
+            ? searchResults.map(s => ({ type: 'result', item: { title: s, url: null } }))
+            : null;
           return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
               step: 2,
               reply: deterministicReply,
-              searchResults: searchResults
+              searchResults: searchResults,
+              searchResultsDetailed
             })
           };
         } else if (countIntent && !seminarQuery) {
@@ -1151,13 +1224,17 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // If we have a deterministic reply (counts/collaborators), we can skip LLM for robustness
         if (deterministicReply) {
+          const searchResultsDetailed = Array.isArray(searchResults) && searchResults.length
+            ? searchResults.map(s => ({ type: 'result', item: { title: s, url: null } }))
+            : null;
           return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
               step: 2,
               reply: deterministicReply,
-              searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 50) : null
+              searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 50) : null,
+              searchResultsDetailed
             })
           };
         }
@@ -1459,7 +1536,9 @@ if (contains("얼마")) → include("50만원")
             step: 2,
             reply,
             // Return array of human-readable strings for frontend rendering
-            searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 5) : null
+            searchResults: Array.isArray(searchResults) && searchResults.length ? searchResults.slice(0, 5) : null,
+            // Structured results for richer UI
+            searchResultsDetailed: Array.isArray(searchResultsDetailed) && searchResultsDetailed.length ? searchResultsDetailed.slice(0, 5) : null
           })
         };
       }
