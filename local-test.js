@@ -1,7 +1,7 @@
 // Local test
 const fetch = require('node-fetch');
 
-const BASE_URL = 'http://localhost:9999/.netlify/functions/chat-ai-driven';
+const BASE_URL = 'http://localhost:8889/.netlify/functions/chat-ai-driven';
 
 async function testQuery(query) {
   try {
