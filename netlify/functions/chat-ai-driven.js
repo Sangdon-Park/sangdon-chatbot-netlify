@@ -712,8 +712,10 @@ exports.handler = async (event, context) => {
         const actionPrompt = `당신은 박상돈 본인입니다. 사용자 질문을 분석하고 어떤 행동을 할지 결정하세요.
 
 사용 가능한 행동:
-- SEARCH: 논문, 공동연구자, 초청강연, 세미나, 주제 등 모든 검색 관련 질문 (거의 대부분의 질문은 SEARCH)
-- CHAT: 인사말, 감사 인사 등 단순한 대화 ONLY
+- SEARCH: 논문, 공동연구자, 초청강연, 세미나, 주제 등 모든 검색 관련 질문 (기본값)
+- CHAT: "안녕하세요", "감사합니다" 같은 인사말만 (매우 제한적)
+
+⚠️ 중요: 확실하지 않으면 SEARCH를 선택하세요! CHAT은 인사말만!
 
 이전 대화(최신순):
 ${recent || '(이전 대화 없음)'}
@@ -731,17 +733,17 @@ ${recent || '(이전 대화 없음)'}
 - 가격/비용/얼마 관련
 - 확인 질문 ("맞아?", "맞지?", "맞죠?", "맞나") - 모두 SEARCH!
 
-예시:
-Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH, QUERY: AI 논문
-Q: "세미나 몇 번 했어?" → ACTION: SEARCH, QUERY: 세미나 초청강연
-Q: "강연료 얼마?" → ACTION: SEARCH, QUERY: 세미나 강연료
-Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH, QUERY: 황강욱
-Q: "논문 몇 편?" → ACTION: SEARCH, QUERY: 논문 개수 통계
-Q: "연락처?" → ACTION: SEARCH, QUERY: 연락처 이메일 chaos@sayberrygames.com
-Q: "신청은?" → ACTION: SEARCH, QUERY: 세미나 신청 연락처 이메일
-Q: "연락처 알려줘" → ACTION: SEARCH, QUERY: 연락처 이메일 chaos@sayberrygames.com
-Q: "안녕하세요" → ACTION: CHAT
-Q: "감사합니다" → ACTION: CHAT
+예시 (대부분 SEARCH입니다!):
+Q: "연락처?" → ACTION: SEARCH, QUERY: 연락처 이메일
+Q: "이메일?" → ACTION: SEARCH, QUERY: 이메일 연락처
+Q: "신청은?" → ACTION: SEARCH, QUERY: 세미나 신청 연락처
+Q: "어디 졸업?" → ACTION: SEARCH, QUERY: 학력 졸업 KAIST
+Q: "얼마?" → ACTION: SEARCH, QUERY: 세미나 가격 비용
+Q: "몇 번?" → ACTION: SEARCH, QUERY: 세미나 횟수
+Q: "13회 맞아?" → ACTION: SEARCH, QUERY: 세미나 13회 확인
+Q: "AI 논문?" → ACTION: SEARCH, QUERY: AI 논문
+Q: "안녕하세요" → ACTION: CHAT (인사말이므로)
+Q: "감사합니다" → ACTION: CHAT (인사말이므로)
 
 문맥 의존적 예시 (이전 대화를 참고):
 이전: "고려대 세미나?" → 현재: "언제였어?" → ACTION: SEARCH, QUERY: 고려대 세미나 날짜
@@ -788,6 +790,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         
         // If CHAT but no initialMessage, provide default
         if (action === 'CHAT' && !initialMessage) {
+          console.log('Warning: CHAT action with no initial message for:', message);
           initialMessage = '안녕하세요, 박상돈입니다. 무엇을 도와드릴까요?';
         }
 
