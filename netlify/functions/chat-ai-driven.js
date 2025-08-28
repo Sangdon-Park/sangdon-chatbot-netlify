@@ -1059,6 +1059,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         const countIntent = /몇|개수|얼마나|how many/.test(lowerMsg) || /몇|개수|얼마나|how many/.test((query || '').toLowerCase());
         // Detect collaborator intent (누구와 가장 많이 같이 썼는지 등)
         const collaboratorIntent = /(공저|공동연구|같이|함께|coauthor|collaborator|누구)/.test(lowerMsg);
+        const mostIntent = /(가장|제일|most)/.test(lowerMsg);
         // Detect list-all intent - removed to let AI handle naturally
         const listIntent = false;
         
@@ -1165,7 +1166,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           if (matchedPapers.length === 0) {
             deterministicReply = `전체 국제저널 기준으로 ${PAPERS_DATABASE.length}편입니다.`;
           }
-        } else if (collaboratorIntent && /가장\s*많이/.test(lowerMsg)) {
+        } else if (collaboratorIntent && (mostIntent || /가장\s*많이|제일\s*많이|most\s*(papers|with)/.test(lowerMsg))) {
           // Only handle "who did you write the most papers with" deterministically
           const specificName = extractCollaboratorNameFromMessage();
           let { topName, count, list } = computeCollaboratorsAndList(specificName);
