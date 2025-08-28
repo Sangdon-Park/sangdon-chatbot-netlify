@@ -727,6 +727,9 @@ ${recent || '(이전 대화 없음)'}
 - 연구 주제/키워드 관련
 - 개수/통계 관련
 - 년도/기간 관련
+- 연락처/이메일/신청 방법 관련 ← 특히 "연락처?" "이메일?" "신청은?" 등은 모두 SEARCH!
+- 가격/비용/얼마 관련
+- 확인 질문 ("맞아?", "맞지?", "맞죠?", "맞나") - 모두 SEARCH!
 
 예시:
 Q: "AI 논문 뭐 썼어?" → ACTION: SEARCH, QUERY: AI 논문
@@ -734,6 +737,9 @@ Q: "세미나 몇 번 했어?" → ACTION: SEARCH, QUERY: 세미나 초청강연
 Q: "강연료 얼마?" → ACTION: SEARCH, QUERY: 세미나 강연료
 Q: "황강욱 교수님과 쓴 논문?" → ACTION: SEARCH, QUERY: 황강욱
 Q: "논문 몇 편?" → ACTION: SEARCH, QUERY: 논문 개수 통계
+Q: "연락처?" → ACTION: SEARCH, QUERY: 연락처 이메일 chaos@sayberrygames.com
+Q: "신청은?" → ACTION: SEARCH, QUERY: 세미나 신청 연락처 이메일
+Q: "연락처 알려줘" → ACTION: SEARCH, QUERY: 연락처 이메일 chaos@sayberrygames.com
 Q: "안녕하세요" → ACTION: CHAT
 Q: "감사합니다" → ACTION: CHAT
 
@@ -779,16 +785,29 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         let action = actionMatch ? actionMatch[1].trim() : 'CHAT';
         let query = queryMatch ? queryMatch[1].trim() : '';
         let initialMessage = initialMatch ? initialMatch[1].trim() : null;
+        
+        // If CHAT but no initialMessage, provide default
+        if (action === 'CHAT' && !initialMessage) {
+          initialMessage = '안녕하세요, 박상돈입니다. 무엇을 도와드릴까요?';
+        }
 
         // Enhanced heuristic: More aggressive SEARCH detection
         function messageSuggestsSearch(text) {
           const lower = (text || '').toLowerCase();
           
+          // CRITICAL FIX: Force SEARCH for contact-related single words (more flexible)
+          const contactPatterns = ['연락처', '이메일', '신청', 'email', 'contact'];
+          for (const pattern of contactPatterns) {
+            if (lower.includes(pattern)) {
+              return true;
+            }
+          }
+          
           // Direct keywords that always trigger SEARCH
           const searchKeywords = [
             '논문', '저널', 'paper', 'publication', 'journal',
             '세미나', '강연', '초청', 'seminar', 'talk', 'lecture',
-            '강연료', '비용', 'fee',
+            '강연료', '비용', 'fee', '가격', 'price',
             '몇', '개수', '통계', 'count', 'how many',
             '연구', 'research', '주제', 'topic',
             '공저', '공동', '같이', '함께', 'coauthor', 'collaborat',
@@ -796,7 +815,11 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
             '년', '연도', 'year', '언제', 'when',
             '누구', 'who', '어떤', 'what', '뭐', '무엇',
             '얼마', '돈', '50만원', '500000',
-            '횟수', '회', '번', '개'
+            '횟수', '회', '번', '개',
+            '연락처', '이메일', 'email', 'contact', '신청',
+            '어디로', '어떻게', 'how', 'where',
+            '맞아', '맞죠', '맞지', '맞나',
+            '졸업', '학력', '학교', '대학', '학사', '석사', '박사'
           ];
           
           for (const keyword of searchKeywords) {
@@ -843,11 +866,27 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           return false;
         }
 
-        if (action !== 'SEARCH' && messageSuggestsSearch(message)) {
+        // CRITICAL OVERRIDE: Force SEARCH more aggressively
+        if (messageSuggestsSearch(message)) {
           console.log('Override: Forcing SEARCH based on local heuristic');
           action = 'SEARCH';
           if (!query) query = message;
           if (!initialMessage) initialMessage = '관련 자료를 확인해보겠습니다.';
+        }
+        
+        // EXTRA FORCE: Single word contact queries MUST be SEARCH
+        const contactWords = ['연락처', '이메일', '신청', 'email', 'contact'];
+        const msgClean = message.replace(/[?!.,\s]/g, '');
+        
+        // Check if message is essentially just a contact word
+        for (const word of contactWords) {
+          if (msgClean === word || msgClean === word + '은' || msgClean === '신청은') {
+            console.log('FORCED OVERRIDE: Single word contact query detected:', message);
+            action = 'SEARCH';
+            query = '연락처 이메일 chaos@sayberrygames.com';
+            initialMessage = '확인해드리겠습니다.';
+            break;
+          }
         }
         
         console.log('Parsed/Resolved - Action:', action, 'Query:', query, 'Initial:', initialMessage);
@@ -1104,6 +1143,9 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           );
         }
         
+        // Remove hardcoded responses - enhance context for AI instead
+        // No deterministic replies here - let AI handle with better prompts
+        
         // If we have a deterministic reply (counts/collaborators), we can skip LLM for robustness
         if (deterministicReply) {
           return {
@@ -1119,19 +1161,48 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
 
         const recent = (history || []).slice(-6).map(h => `${h.role === 'user' ? '사용자' : '어시스턴트'}: ${h.content}`).join('\n');
         
-        // 짧은 질문이면서 문맥이 있는 경우 처리
-        const isShortQuery = message.length < 15;
-        const contextClue = isShortQuery && recent ? `
-이것은 짧은 질문입니다. 이전 대화 문맥을 참고하여 답변하세요:
-- "얼마?" "비용은?" → 세미나 비용 (시간당 50만원)
-- "시간은?" "몇시간?" → 세미나 시간 (1-2시간, 평균 1시간 30분)
-- "언제?" → 구체적 세미나 날짜
-- "몇개?" "몇편?" → 논문 25편 또는 세미나 13회
-- "연락처?" "Contact?" → chaos@sayberrygames.com
-` : '';
+        // Enhanced context detection for AI
+        let enhancedContext = '';
+        const isShortQuery = message.length < 20;
+        
+        // Detect question patterns and provide stronger hints
+        const confirmationPatterns = ['맞아', '맞죠', '맞지', '맞나', '맞습'];
+        const hasConfirmation = confirmationPatterns.some(pattern => lowerMsg.includes(pattern));
+        
+        const compoundConnectors = ['고 ', '이고 ', '랑 ', '이랑 ', '하고 '];
+        const hasCompound = compoundConnectors.some(conn => lowerMsg.includes(conn));
+        
+        if (hasConfirmation) {
+          enhancedContext = `
+⚠️ 확인 질문 감지! 반드시 "네"로 시작하세요!
+예: "네, 맞습니다" "네, 총 13회입니다" "네, 25편입니다"
+`;
+        }
+        
+        if (hasCompound) {
+          enhancedContext += `
+⚠️ 복합 질문 감지! 연결사(~고, ~랑) 양쪽 모두 답변하세요!
+"얼마고 몇번?" → "시간당 50만원이고, 총 13회 진행했습니다."
+반드시 가격과 횟수 둘 다 포함!
+`;
+        }
+        
+        if (isShortQuery) {
+          enhancedContext += `
+짧은 질문 처리:
+- "얼마?" → "시간당 50만원입니다."
+- "연락처?" → "chaos@sayberrygames.com으로 연락주세요."
+- "몇번?" → 세미나면 "13회", 논문이면 "25편"
+`;
+        }
         
         const finalPrompt = `당신은 박상돈입니다.
+${enhancedContext}
 
+⚠️⚠️⚠️ 최우선 규칙 ⚠️⚠️⚠️
+${hasConfirmation ? '【확인 질문입니다! 반드시 "네"로 시작하세요!】\n' : ''}
+${hasCompound ? '【복합 질문입니다! 모든 부분에 답변하세요!】\n' : ''}
+${lowerMsg.includes('연락처') || lowerMsg.includes('이메일') ? '【연락처 질문입니다! chaos@sayberrygames.com을 반드시 포함!】\n' : ''}
 【프로필 정보】
 ◆ 현직: AI 연구 엔지니어, 세이베리 게임즈 (2025.5~현재)
 ◆ 학력: 
@@ -1168,7 +1239,7 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 ▶ 논문 개수 (논문 몇/개수/편):
 → "국제저널 25편입니다."
 
-▶ 신청/연락처 (신청/연락/contact/email):
+▶ 신청/연락처 (신청/연락/contact/email/어디로/어떻게):
 → "chaos@sayberrygames.com으로 연락주세요."
 
 ▶ 일반 문의 (AI 세미나에 대해/궁금/알려):
@@ -1185,19 +1256,60 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 - 경상국립대 → "8월 25일입니다" (2025 붙이지 말것!)
 - KAIST → "2024년과 2025년에 진행했습니다"
 
-▶ 복합 질문 - 반드시 각 부분 모두 답변!!!:
-"얼마고 몇번?" → "시간당 50만원이고, 총 13회 진행했습니다."
-"세미나 얼마고 몇 번?" → "시간당 50만원이고, 총 13회 진행했습니다."
-"논문이랑 세미나?" → "논문 25편, 세미나 13회입니다."
-"논문은 몇 편이고 세미나는 몇 번?" → "논문 25편, 세미나 13회입니다."
-복합 질문은 반드시 모든 부분에 답변할 것!
+▶ 복합 질문 - 연결사 패턴 인식:
+🚨🚨🚨 "~고", "~랑", "~하고" = 두 가지 묻는 것! 둘 다 답변! 🚨🚨🚨
 
-▶ 짧은 질문:
-- "얼마?" → "시간당 50만원입니다."
-- "몇개?" → 문맥 보고 "25편" 또는 "13회"
+복합 질문 처리 알고리즘:
+1. 연결사 감지: "고", "랑", "하고"
+2. 양쪽 요소 파악
+3. 각각에 대한 답변 준비
+4. 연결해서 답변
+
+예시 (반드시 따라야 함):
+"세미나 얼마고 몇 번?" 
+→ 분해: [세미나 얼마] + [몇 번]
+→ 답변: "시간당 50만원이고, 총 13회 진행했습니다."
+
+"얼마고 몇번?"
+→ 분해: [얼마] + [몇번]  
+→ 답변: "시간당 50만원이고, 총 13회 진행했습니다."
+
+"비용이랑 횟수?"
+→ 분해: [비용] + [횟수]
+→ 답변: "시간당 50만원이며, 총 13회입니다."
+
+틀린 예시 (절대 금지):
+"세미나 얼마고 몇 번?" → ❌ "총 13회 진행했습니다." (가격 누락)
+"얼마고 몇번?" → ❌ "시간당 50만원입니다." (횟수 누락)
+
+연결사 보이면 → 양쪽 모두 답변!
+
+▶ 짧은 질문 - 반드시 이 패턴들 인식!:
+- "얼마?" "비용은?" "가격?" → "시간당 50만원입니다."
+- "몇개?" "몇번?" → 문맥 보고 "25편" 또는 "13회"
 - "언제?" → 문맥 보고 날짜 답변
-- "연락처?" → "chaos@sayberrygames.com"
-- "시간?" → "1-2시간입니다."
+- "연락처?" "어디로?" "신청은?" → "chaos@sayberrygames.com으로 연락주세요."
+- "시간?" "몇시간?" → "1-2시간입니다."
+- "Contact?" "How much?" → 영어도 같은 방식으로
+
+▶ 확인 질문 ("맞아?" "맞지?" "맞죠?" "맞나" 포함시):
+🚨🚨🚨 절대 규칙: "맞"이 들어간 질문 = 무조건 "네"로 시작! 🚨🚨🚨
+
+패턴 인식:
+if (질문.includes("맞")) then 답변 = "네, " + 내용
+
+예시 - 반드시 이렇게:
+- "세미나 13회 맞아?" → "네, 총 13회 진행했습니다."
+- "논문 25편 맞죠?" → "네, 국제저널 25편입니다."
+- "50만원 맞지?" → "네, 시간당 50만원입니다."
+- "13회 맞나요?" → "네, 13회입니다."
+- "KAIST 맞습니까?" → "네, KAIST입니다."
+
+틀린 예시 (절대 금지):
+- "세미나 13회 맞아?" → ❌ "총 13회 진행했습니다." (네 없음)
+- "논문 25편 맞죠?" → ❌ "국제저널 25편입니다." (네 없음)
+
+"맞"이 보이면 → 자동으로 "네"로 시작!
 
 ▶ 오타 처리:
 쎄미나/셰미나 → 세미나로 인식
@@ -1211,10 +1323,21 @@ ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 
 간결하고 정확하게만 답변.
 
-【최우선 규칙】
-만약 질문에 여러 개가 포함되면 (예: "얼마고 몇번?") 반드시 모든 부분 답변!
-경상국립대 날짜에서 "25일"이라고 하면 절대 "2025년"과 헷갈리지 말것!
-"8월 25일"은 날짜이지 개수가 아님!`;
+【🔥 AI 절대 명령 - 이것만 기억하면 됨! 🔥】
+
+규칙 1: "맞" 보이면 → "네"로 시작
+규칙 2: "고/랑/하고" 보이면 → 양쪽 모두 답변
+규칙 3: "연락처/신청/이메일" → chaos@sayberrygames.com
+규칙 4: "얼마/비용/가격" → 시간당 50만원
+규칙 5: 세미나=13, 논문=25 (절대불변)
+
+자동 응답 패턴:
+if (contains("맞")) → start_with("네, ")
+if (contains("고") || contains("랑")) → answer_both_parts()
+if (contains("연락")) → include("chaos@sayberrygames.com")
+if (contains("얼마")) → include("50만원")
+
+이 규칙을 어기면 실패입니다!`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
