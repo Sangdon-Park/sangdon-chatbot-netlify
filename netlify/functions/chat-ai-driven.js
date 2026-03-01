@@ -52,7 +52,7 @@ function t(lang, koOrKey, enText) {
 }
 
 function containsHangul(text = '') {
-  return /[가-힣]/.test(String(text));
+  return /[\u3131-\u314E\u314F-\u3163\uAC00-\uD7A3]/.test(String(text));
 }
 
 function detectLanguage(message = '', history = []) {
@@ -123,7 +123,7 @@ function isCourseIntent(text = '') {
 }
 
 function isProfileIntent(text = '') {
-  return /(about|bio|who are|what do you do|소개|약력|학력|경력|무슨 일|무슨일|소속|직위|연구 분야)/i.test(text);
+  return /(about|bio|who are you|who are u|who is this|what do you do|profile|cv|\uB204\uAD6C|\uC18C\uAC1C|\uC57D\uB825|\uD559\uB825|\uACBD\uB825|\uC18C\uC18D|\uC9C1\uC704|\uC5F0\uAD6C|\uBB34\uC2A8\s?\uC77C)/i.test(text);
 }
 
 function isProjectIntent(text = '') {
@@ -152,12 +152,16 @@ function isLikelySmallTalk(message = '') {
     return false;
   }
 
+  const raw = String(message || '');
+  if (/[??]/.test(raw) && (/(who|what|how|why|when|where)/i.test(text) || /\uB204\uAD6C|\uBB34\uC2A8|\uC5B4\uB5A4|\uC5B4\uB514|\uC65C|\uC5B8\uC81C/.test(raw))) {
+    return false;
+  }
+
   const compact = text.replace(/\s+/g, '');
   const tokenCount = text.split(/\s+/).filter(Boolean).length;
 
-  if (compact.length <= 6 && tokenCount <= 2) {
-    return true;
-  }
+  if (compact.length <= 4 && tokenCount <= 2) return true;
+  if (compact.length <= 6 && tokenCount <= 2 && /^(ok|okay|thanks|thx|\u3147\u314B|\uAC10\uC0AC|\uACE0\uB9C8\uC6CC)/i.test(compact)) return true;
 
   return false;
 }
