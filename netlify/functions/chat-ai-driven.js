@@ -318,6 +318,83 @@ function extractGradingSummaryFromHtml(html = '') {
   return null;
 }
 
+function extractChapterNumbers(topic = '') {
+  const text = String(topic || '');
+  const nums = [];
+
+  const chMatches = text.matchAll(/(?:ch(?:apter)?\s*)(\d{1,2})/gi);
+  for (const m of chMatches) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+
+  const chapterKoMatches = text.matchAll(/(\d{1,2})\s*장/g);
+  for (const m of chapterKoMatches) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+
+  return nums;
+}
+
+function toChapterRange(min, max) {
+  const a = String(min).padStart(2, '0');
+  const b = String(max).padStart(2, '0');
+  return `CHAPTER ${a}~${b}`;
+}
+
+function deriveCoverageFromScheduleTable(html = '') {
+  const tables = String(html).match(/<table[^>]*class=["'][^"']*course-table[^"']*["'][^>]*>[\s\S]*?<\/table>/gi) || [];
+
+  for (const table of tables) {
+    if (!/(주차|week)/i.test(table) || !/(주제|topic)/i.test(table)) continue;
+
+    const rows = table.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    const parsedRows = [];
+    for (const row of rows) {
+      const cells = [];
+      row.replace(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi, (_, cell) => {
+        cells.push(stripHtml(cell));
+        return '';
+      });
+      if (cells.length < 2) continue;
+      parsedRows.push({
+        week: cells[0],
+        topic: cells[1]
+      });
+    }
+
+    const midtermIndex = parsedRows.findIndex((r) => /(중간고사|midterm)/i.test(r.topic));
+    const finalIndex = parsedRows.findIndex((r) => /(기말고사|final)/i.test(r.topic));
+
+    const result = { midtermCoverage: null, finalCoverage: null };
+
+    if (midtermIndex > 0) {
+      const nums = parsedRows
+        .slice(0, midtermIndex)
+        .flatMap((r) => extractChapterNumbers(r.topic));
+      if (nums.length > 0) {
+        result.midtermCoverage = toChapterRange(Math.min(...nums), Math.max(...nums));
+      }
+    }
+
+    if (midtermIndex >= 0 && finalIndex > midtermIndex) {
+      const nums = parsedRows
+        .slice(midtermIndex + 1, finalIndex)
+        .flatMap((r) => extractChapterNumbers(r.topic));
+      if (nums.length > 0) {
+        result.finalCoverage = toChapterRange(Math.min(...nums), Math.max(...nums));
+      }
+    }
+
+    if (result.midtermCoverage || result.finalCoverage) {
+      return result;
+    }
+  }
+
+  return { midtermCoverage: null, finalCoverage: null };
+}
+
 function pickFirstMatch(text = '', patterns = []) {
   for (const pattern of patterns) {
     const m = String(text).match(pattern);
@@ -420,13 +497,14 @@ async function fetchCourseFacts(course, lang = 'ko') {
       const plain = stripHtml(html);
       const gradingSummary = extractGradingSummaryFromHtml(html);
       const coverage = extractCourseFactsFromText(plain);
+      const scheduleCoverage = deriveCoverageFromScheduleTable(html);
 
       const facts = {
         course,
         sourceUrl: url,
         gradingSummary,
-        midtermCoverage: coverage.midtermCoverage,
-        finalCoverage: coverage.finalCoverage,
+        midtermCoverage: coverage.midtermCoverage || scheduleCoverage.midtermCoverage,
+        finalCoverage: coverage.finalCoverage || scheduleCoverage.finalCoverage,
         semesterScope: coverage.semesterScope,
         updatedAt: Date.now()
       };
