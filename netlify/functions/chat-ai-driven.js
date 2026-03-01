@@ -735,6 +735,12 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
         `Right before joining Daejeon University, he worked as ${SITE_PROFILE.formerIndustryRole} during ${SITE_PROFILE.formerIndustryPeriod}.`
       );
     }
+
+    return tr(
+      lang,
+      `대전대학교 부임 직전에는 ${SITE_PROFILE.formerIndustryPeriod} 동안 ${SITE_PROFILE.formerIndustryRole}로 근무했습니다.`,
+      `Right before joining Daejeon University, he worked as ${SITE_PROFILE.formerIndustryRole} during ${SITE_PROFILE.formerIndustryPeriod}.`
+    );
   }
 
   if (!retrieved || retrieved.length === 0) {
@@ -940,8 +946,9 @@ exports.handler = async (event) => {
     const retrieved = await retrieve(query, apiKey, runtimeDocs);
     const payload = buildSearchPayload(retrieved);
 
+    const forceFallback = isBeforeThatIntent(message);
     let reply = null;
-    if (apiKey) {
+    if (apiKey && !forceFallback) {
       const prompt = buildPrompt(message, history, retrieved, lang);
       reply = await generateReply(prompt, apiKey);
     }
