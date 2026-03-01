@@ -15,6 +15,8 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 const MAX_HISTORY = 10;
 const MAX_RESULTS = 5;
 const MAX_RETRIEVED = 6;
+const MAX_OUTPUT_TOKENS = 1400;
+const MAX_CONTEXT_TEXT_CHARS = 420;
 const COURSE_FACT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const COURSE_FACT_CACHE = new Map();
 const HOMEPAGE_SNAPSHOT_TTL_MS = 30 * 60 * 1000;
@@ -823,7 +825,11 @@ function buildPrompt(message, history, retrieved, lang) {
 
   const context = (retrieved || []).map((r, i) => {
     const doc = r.doc || r;
-    return `[${i + 1}] type=${doc.type}\ntitle=${doc.title}\nurl=${doc.url || 'N/A'}\ntext=${doc.text}`;
+    const text = String(doc.text || '');
+    const clipped = text.length > MAX_CONTEXT_TEXT_CHARS
+      ? `${text.slice(0, MAX_CONTEXT_TEXT_CHARS)}...`
+      : text;
+    return `[${i + 1}] type=${doc.type}\ntitle=${doc.title}\nurl=${doc.url || 'N/A'}\ntext=${clipped}`;
   }).join('\n\n');
 
   return [
@@ -856,7 +862,7 @@ async function generateReply(prompt, apiKey) {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 700
+            maxOutputTokens: MAX_OUTPUT_TOKENS
           }
         })
       }
