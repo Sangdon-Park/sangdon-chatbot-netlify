@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+﻿const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 const { getCachedEmbedding, setCachedEmbedding } = require('./embeddings-cache');
 const {
@@ -1024,6 +1024,9 @@ async function buildRuntimeDocs(query, history, lang) {
   if (!targets.length && (isExamIntent(q) || isGradingIntent(q))) {
     for (const c of COURSES_2026_SPRING || []) targets.push(c);
   }
+  if (!targets.length && isCourseIntent(q)) {
+    for (const c of COURSES_2026_SPRING || []) targets.push(c);
+  }
 
   const uniqueTargets = Array.from(new Map(targets.map((c) => [c.code, c])).values());
   const factsList = await Promise.all(uniqueTargets.map((course) => fetchCourseFacts(course, lang)));
@@ -1069,6 +1072,17 @@ async function retrieve(query, apiKey, runtimeDocs = []) {
       .filter((r) => r.doc.type === 'site' && /(about|ko\.html|en\.html)/i.test(String(r.doc.url || '')))
       .slice(0, 20);
     candidates = [...factDocs, ...aboutDocs];
+  } else if (isCourseIntent(query)) {
+    const courseDocs = ranked
+      .filter((r) => {
+        const type = String(r.doc.type || '');
+        if (type === 'course' || type === 'course_fact') return true;
+        if (type !== 'site_fact') return false;
+        const text = `${r.doc.title || ''} ${r.doc.text || ''}`;
+        return /(course|teaching|syllabus|강의|수업|과목)/i.test(text);
+      })
+      .slice(0, 22);
+    candidates = courseDocs.length ? courseDocs : ranked.filter((r) => r.lexical > 0).slice(0, 22);
   } else {
     candidates = ranked.filter((r) => r.lexical > 0).slice(0, 22);
   }
@@ -1145,6 +1159,7 @@ function buildPrompt(message, history, retrieved, lang) {
     '- Answer strictly from the given context.',
     '- If context is insufficient, say the information is not currently confirmed in provided materials.',
     '- For exam-range or grading questions, quote exact range/weights from context.',
+    '- For course/teaching questions, prioritize course/course_fact context and answer directly when course context exists.',
     '- For follow-up questions, use recent conversation to resolve omitted subject/course.',
     '- Keep conversational continuity within the same session (e.g., user-introduced name/preferences).',
     `- Contact email is ${SITE_PROFILE.email}.`,
@@ -1188,7 +1203,7 @@ function isWeakReply(text = '') {
   const n = normalize(text);
   if (!n) return true;
   if (n.length < 8) return true;
-  return /(질문 확인|찾아보겠|how can i help|cannot classify|관련 자료를 찾았습니다\. 우선)/i.test(text);
+  return /(\uC9C8\uBB38\s*\uD655\uC778|\uCC3E\uC544\uBCF4\uACA0|how can i help|cannot classify|provided materials|not currently confirmed|could not confirm|\uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4|\uD655\uC778\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4|\uBA85\uC2DC\uC801\uC73C\uB85C \uD655\uC778\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4)/i.test(text);
 }
 
 function parseCoverageFromDocText(text = '', type = 'midterm') {
@@ -1766,21 +1781,26 @@ exports.handler = async (event) => {
     const payload = buildSearchPayload(retrieved);
 
     const forceFallback =
-      isBeforeThatIntent(message) ||
-      isExamIntent(message) ||
-      isGradingIntent(message) ||
-      isTextbookIntent(message) ||
-      isLinkIntent(message) ||
-      isUndergradIntent(message) ||
-      isResearchIntent(message) ||
       isAskMyNameIntent(message) ||
-      Boolean(extractNameFromText(message)) ||
-      isPublicationCountIntent(message) ||
-      isFirstAuthorIntent(message);
+      Boolean(extractNameFromText(message));
     let reply = null;
     if (apiKey && !forceFallback) {
       const prompt = buildPrompt(message, history, retrieved, lang);
       reply = await generateReply(prompt, apiKey);
+    }
+
+    if (apiKey && reply && isNoDataStyleReply(reply)) {
+      const retryPrompt = [
+        buildPrompt(message, history, retrieved, lang),
+        '',
+        '- Retry once with best-effort grounding.',
+        '- If any relevant context exists, answer directly from it instead of saying information is unavailable.',
+        '- Mention uncertainty only when the context truly has no matching evidence.'
+      ].join('\n');
+      const retried = await generateReply(retryPrompt, apiKey);
+      if (retried && !isNoDataStyleReply(retried)) {
+        reply = retried;
+      }
     }
 
     if (!reply || isWeakReply(reply)) {
@@ -1816,3 +1836,4 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server error' }) };
   }
 };
+
