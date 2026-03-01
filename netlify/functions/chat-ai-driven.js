@@ -81,10 +81,16 @@ function tokenize(text = '') {
 
 function isGreetingOnlyMessage(message = '') {
   const clean = normalize(message).replace(/[!?.,]/g, '');
-  return (
-    /^(안녕|안녕하세요|ㅎㅇ|하이|헬로|g2|h2)$/.test(clean) ||
-    /^(hello|hi|hey|good morning|good afternoon|good evening)$/.test(clean)
-  );
+
+  if (/^(hello|hi|hey|good morning|good afternoon|good evening)$/.test(clean)) return true;
+  if (/^(\uC548\uB155|\uC548\uB155\uD558\uC138\uC694|\u314E\u3147|\uD558\uC774|\uD5EC\uB85C|g2|h2)$/u.test(clean)) return true;
+
+  // General short greeting patterns (e.g., "?2", "??2", "hii")
+  if (/^\uC548\uB155[a-z0-9]*$/u.test(clean)) return true;
+  if (/^\u314E+[a-z0-9]*$/u.test(clean)) return true;
+  if (/^h[iy]+[0-9]*$/.test(clean)) return true;
+
+  return false;
 }
 
 function isGenericGreetingReply(text = '') {
@@ -129,7 +135,7 @@ function isCoauthorIntent(text = '') {
 }
 
 function isMostIntent(text = '') {
-  return /(most|top|??|??|??)/i.test(text);
+  return /(most|top|\uAC00\uC7A5|\uCD5C\uB2E4|\uB9CE\uC774)/i.test(text);
 }
 
 function isLikelySmallTalk(message = '') {
