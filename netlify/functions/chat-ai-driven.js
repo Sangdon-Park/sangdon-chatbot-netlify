@@ -321,9 +321,42 @@ function extractGradingSummaryFromHtml(html = '') {
 function pickFirstMatch(text = '', patterns = []) {
   for (const pattern of patterns) {
     const m = String(text).match(pattern);
-    if (m && m[1]) return m[1].replace(/\s+/g, ' ').trim();
+    if (m && m[1]) return cleanExtractedSnippet(m[1]);
   }
   return null;
+}
+
+function cleanExtractedSnippet(value = '') {
+  let out = decodeEntities(String(value || ''))
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cutTokens = [
+    '실습 코드',
+    '동기화 기준',
+    '교재 정보',
+    '강의자료',
+    '공지',
+    'Lecture Materials',
+    'Announcements',
+    'Page:',
+    'TOP const',
+    'const sidebar',
+    'document.getElementById'
+  ];
+
+  for (const token of cutTokens) {
+    const idx = out.indexOf(token);
+    if (idx > 0) {
+      out = out.slice(0, idx).trim();
+    }
+  }
+
+  if (out.length > 180) {
+    out = out.slice(0, 180).trim();
+  }
+
+  return out;
 }
 
 function extractCourseFactsFromText(text = '') {
@@ -343,14 +376,20 @@ function extractCourseFactsFromText(text = '') {
     /Final[^.\n]{0,120}?Coverage[:\s]*([^.\n]+)/i
   ]);
 
+  const semesterScope = pickFirstMatch(plain, [
+    /(?:이번\s*학기\s*범위|Semester\s*scope)\s*:\s*(CHAPTER\s*0?1\s*[~\-]\s*0?6(?:\s*\([^)]+\))?)/i,
+    /(CHAPTER\s*0?1\s*[~\-]\s*0?6(?:\s*\([^)]+\))?)/i
+  ]);
+
   return {
     midtermCoverage,
-    finalCoverage
+    finalCoverage,
+    semesterScope
   };
 }
 
 function hasAnyCourseFacts(facts = {}) {
-  return Boolean(facts?.gradingSummary || facts?.midtermCoverage || facts?.finalCoverage);
+  return Boolean(facts?.gradingSummary || facts?.midtermCoverage || facts?.finalCoverage || facts?.semesterScope);
 }
 
 async function fetchCourseFacts(course, lang = 'ko') {
@@ -388,6 +427,7 @@ async function fetchCourseFacts(course, lang = 'ko') {
         gradingSummary,
         midtermCoverage: coverage.midtermCoverage,
         finalCoverage: coverage.finalCoverage,
+        semesterScope: coverage.semesterScope,
         updatedAt: Date.now()
       };
 
@@ -409,6 +449,7 @@ async function fetchCourseFacts(course, lang = 'ko') {
         : (course.gradingSummaryEn || course.gradingSummaryKo || null),
       midtermCoverage: null,
       finalCoverage: null,
+      semesterScope: null,
       updatedAt: Date.now()
     };
   }
@@ -425,6 +466,7 @@ function buildCourseFactDoc(facts) {
   if (facts.gradingSummary) textParts.push(`Grading: ${facts.gradingSummary}.`);
   if (facts.midtermCoverage) textParts.push(`Midterm coverage: ${facts.midtermCoverage}.`);
   if (facts.finalCoverage) textParts.push(`Final coverage: ${facts.finalCoverage}.`);
+  if (facts.semesterScope) textParts.push(`Semester scope: ${facts.semesterScope}.`);
   textParts.push(`Page: ${facts.sourceUrl}.`);
 
   return {
@@ -761,17 +803,26 @@ function parseCoverageFromDocText(text = '', type = 'midterm') {
   const source = String(text || '');
   const patterns = type === 'midterm'
     ? [
-      /Midterm coverage:\s*([^.\n]+)/i,
       /중간고사\s*범위[:\s]*([^.\n]+)/i,
-      /중간고사[^.\n]{0,120}?\(([^)]+)\)/i
+      /중간고사\s*\(([^)]+)\)/i,
+      /Midterm coverage:\s*([^.\n]+)/i,
+      /Midterm(?:\s+Exam)?\s*\(([^)]+)\)/i
     ]
     : [
-      /Final coverage:\s*([^.\n]+)/i,
       /기말고사\s*범위[:\s]*([^.\n]+)/i,
-      /기말고사[^.\n]{0,120}?\(([^)]+)\)/i,
-      /Final(?:\s+Exam)?[^.\n]{0,120}?\(([^)]+)\)/i
+      /기말고사\s*\(([^)]+)\)/i,
+      /Final coverage:\s*([^.\n]+)/i,
+      /Final(?:\s+Exam)?\s*\(([^)]+)\)/i
     ];
   return pickFirstMatch(source, patterns);
+}
+
+function parseSemesterScopeFromDocText(text = '') {
+  const source = String(text || '');
+  return pickFirstMatch(source, [
+    /(?:이번\s*학기\s*범위|Semester\s*scope)\s*:\s*(CHAPTER\s*0?1\s*[~\-]\s*0?6(?:\s*\([^)]+\))?)/i,
+    /(CHAPTER\s*0?1\s*[~\-]\s*0?6(?:\s*\([^)]+\))?)/i
+  ]);
 }
 
 function parseGradingFromDocText(text = '') {
@@ -785,11 +836,13 @@ function parseGradingFromDocText(text = '') {
 function parseTextbookFromDocText(text = '') {
   const source = String(text || '');
   const direct = pickFirstMatch(source, [
-    /교재[:\s]*([\s\S]*?)(?:이번 학기 범위|실습 코드|동기화 기준|교재 정보|$)/i,
-    /Textbook[:\s]*([\s\S]*?)(?:Semester scope|Lab code|Sync baseline|Book info|$)/i,
-    /Book[:\s]*([^.\n]+)/i
+    /(?:^|\s)교재\s*:\s*([\s\S]*?)(?=\s*이번\s*학기\s*범위:|\s*실습\s*코드|\s*동기화\s*기준|\s*교재\s*정보:|$)/i,
+    /(?:^|\s)Textbook\s*:\s*([\s\S]*?)(?=\s*Semester\s*scope:|\s*Lab\s*code|\s*Sync\s*baseline|\s*Book\s*info|$)/i,
+    /(?:^|\s)Book\s*:\s*([^.\n]+)/i
   ]);
-  if (direct) return direct;
+  if (direct && direct.length <= 180 && !/(강의자료|공지|Announcements|TOP|const\s+sidebar|document\.getElementById)/i.test(direct)) {
+    return direct.trim();
+  }
 
   if (/혼자\s*공부하는\s*머신러닝\+딥러닝/i.test(source)) {
     return '박해선, 「혼자 공부하는 머신러닝+딥러닝」 개정판, 한빛미디어';
@@ -926,6 +979,7 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
     const docsForRange = filteredDocs.length ? filteredDocs : courseDocs;
     const mid = docsForRange.map((d) => parseCoverageFromDocText(d.text, 'midterm')).find(Boolean);
     const fin = docsForRange.map((d) => parseCoverageFromDocText(d.text, 'final')).find(Boolean);
+    const scope = docsForRange.map((d) => parseSemesterScopeFromDocText(d.text)).find(Boolean);
 
     if (wantsMidterm && mid) {
       return tr(
@@ -949,6 +1003,21 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
         lang,
         `${targetCourse ? `${targetCourse.titleKo} ` : ''}시험 범위는 ${parts.join(' / ')}입니다.`,
         `${targetCourse ? `${targetCourse.titleEn} ` : ''}exam coverage is ${parts.join(' / ')}.`
+      );
+    }
+
+    if (scope) {
+      if (wantsMidterm || wantsFinal) {
+        return tr(
+          lang,
+          `${targetCourse ? `${targetCourse.titleKo} ` : ''}${wantsMidterm ? '중간고사' : '기말고사'} 세부 범위는 별도 공지 기준이며, 현재 페이지에 공개된 학기 범위는 ${scope}입니다.`,
+          `${targetCourse ? `${targetCourse.titleEn} ` : ''}${wantsMidterm ? 'midterm' : 'final'} detailed coverage follows course notice, and the currently published semester scope is ${scope}.`
+        );
+      }
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}시험범위는 ${scope}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}exam scope is ${scope}.`
       );
     }
 
