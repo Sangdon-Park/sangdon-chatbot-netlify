@@ -102,6 +102,18 @@ function isPublicationIntent(text = '') {
   return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
 }
 
+function isCountIntent(text = '') {
+  return /(총|전체|개수|몇\s*편|몇편|how many|count|number of|total)/i.test(text);
+}
+
+function isFirstAuthorIntent(text = '') {
+  return /(제?\s*1\s*저자|first[\s-]*author|lead[\s-]*author)/i.test(text);
+}
+
+function isPublicationCountIntent(text = '') {
+  return isPublicationIntent(text) && isCountIntent(text);
+}
+
 function isProfileIntent(text = '') {
   return /(누구|소개|약력|학력|경력|소속|직위|연구|무슨\s*일|who are you|profile|bio|about|cv)/i.test(text);
 }
@@ -672,6 +684,37 @@ function buildBaseDocs() {
 
 const BASE_DOCS = buildBaseDocs();
 
+function isParkFirstAuthorName(name = '') {
+  const n = normalize(String(name || ''));
+  return n.includes('sangdon park') || n.includes('박상돈');
+}
+
+function computePublicationMetrics() {
+  const publications = Array.isArray(PUBLICATIONS) ? PUBLICATIONS : [];
+  const listCount = publications.length;
+  const firstAuthorCount = publications.filter((p) => {
+    const first = Array.isArray(p?.authors) && p.authors.length ? p.authors[0] : '';
+    return isParkFirstAuthorName(first);
+  }).length;
+
+  const journals = Number(PUBLICATION_STATS?.journals);
+  const conferences = Number(PUBLICATION_STATS?.conferences);
+  const scholarWorks = Number(PUBLICATION_STATS?.scholarWorks);
+
+  const hasJournals = Number.isFinite(journals);
+  const hasConferences = Number.isFinite(conferences);
+  const totalPapers = hasJournals && hasConferences ? journals + conferences : (hasJournals ? journals : listCount);
+
+  return {
+    totalPapers,
+    journals: hasJournals ? journals : listCount,
+    conferences: hasConferences ? conferences : null,
+    scholarWorks: Number.isFinite(scholarWorks) ? scholarWorks : null,
+    firstAuthorCount,
+    publicationListCount: listCount
+  };
+}
+
 function dedupeDocs(docs = []) {
   const map = new Map();
   for (const doc of docs) {
@@ -767,7 +810,15 @@ async function retrieve(query, apiKey, runtimeDocs = []) {
     .map((doc) => ({ doc, lexical: lexicalScore(query, doc) }))
     .sort((a, b) => b.lexical - a.lexical || (b.doc.year || 0) - (a.doc.year || 0));
 
-  let candidates = ranked.filter((r) => r.lexical > 0).slice(0, 22);
+  let candidates;
+  if (isPublicationCountIntent(query) || isFirstAuthorIntent(query)) {
+    const statsDocs = ranked.filter((r) => r.doc.type === 'publication_stats').slice(0, 1);
+    const pubDocs = ranked.filter((r) => r.doc.type === 'publication').slice(0, 21);
+    candidates = [...statsDocs, ...pubDocs];
+  } else {
+    candidates = ranked.filter((r) => r.lexical > 0).slice(0, 22);
+  }
+
   if (!candidates.length) {
     candidates = isPublicationIntent(query)
       ? ranked.filter((r) => r.doc.type === 'publication').slice(0, 22)
@@ -1027,6 +1078,38 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
       lang,
       `공식 홈페이지 주소는 ${SITE_PROFILE.website}입니다. 한국어 페이지: ${SITE_LINKS.homeKo}, 영어 페이지: ${SITE_LINKS.homeEn}`,
       `Official website URL: ${SITE_PROFILE.website}. Korean page: ${SITE_LINKS.homeKo}, English page: ${SITE_LINKS.homeEn}`
+    );
+  }
+
+  if (isPublicationIntent(message) && (isPublicationCountIntent(message) || isFirstAuthorIntent(message))) {
+    const metrics = computePublicationMetrics();
+
+    if (isFirstAuthorIntent(message)) {
+      return tr(
+        lang,
+        `제1저자 논문은 ${metrics.firstAuthorCount}편입니다. (현재 홈페이지 국제저널 목록 ${metrics.publicationListCount}편 기준)`,
+        `First-author papers: ${metrics.firstAuthorCount} (based on ${metrics.publicationListCount} journal entries in the current homepage publication list).`
+      );
+    }
+
+    if (Number.isFinite(metrics.conferences)) {
+      const scholarTail = Number.isFinite(metrics.scholarWorks)
+        ? ` Google Scholar works는 ${metrics.scholarWorks}개입니다.`
+        : '';
+      const scholarTailEn = Number.isFinite(metrics.scholarWorks)
+        ? ` Google Scholar works: ${metrics.scholarWorks}.`
+        : '';
+      return tr(
+        lang,
+        `논문은 총 ${metrics.totalPapers}편입니다. (국제저널 ${metrics.journals}편 + 국제학회 ${metrics.conferences}편)${scholarTail}`,
+        `Total papers: ${metrics.totalPapers} (${metrics.journals} journal papers + ${metrics.conferences} conference papers).${scholarTailEn}`
+      );
+    }
+
+    return tr(
+      lang,
+      `현재 홈페이지 논문 목록 기준 총 ${metrics.publicationListCount}편입니다.`,
+      `Based on the current homepage publication list, total papers are ${metrics.publicationListCount}.`
     );
   }
 
@@ -1310,7 +1393,14 @@ exports.handler = async (event) => {
     const retrieved = await retrieve(query, apiKey, runtimeDocs);
     const payload = buildSearchPayload(retrieved);
 
-    const forceFallback = isBeforeThatIntent(message) || isExamIntent(message) || isGradingIntent(message) || isTextbookIntent(message) || isLinkIntent(message);
+    const forceFallback =
+      isBeforeThatIntent(message) ||
+      isExamIntent(message) ||
+      isGradingIntent(message) ||
+      isTextbookIntent(message) ||
+      isLinkIntent(message) ||
+      isPublicationCountIntent(message) ||
+      isFirstAuthorIntent(message);
     let reply = null;
     if (apiKey && !forceFallback) {
       const prompt = buildPrompt(message, history, retrieved, lang);
