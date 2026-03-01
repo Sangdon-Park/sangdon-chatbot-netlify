@@ -15,7 +15,6 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 const MAX_HISTORY = 10;
 const MAX_RESULTS = 5;
 const MAX_RETRIEVED = 6;
-const MAX_OUTPUT_TOKENS = 1400;
 const MAX_CONTEXT_TEXT_CHARS = 420;
 const COURSE_FACT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const COURSE_FACT_CACHE = new Map();
@@ -861,8 +860,7 @@ async function generateReply(prompt, apiKey) {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: MAX_OUTPUT_TOKENS
+            temperature: 0.2
           }
         })
       }
