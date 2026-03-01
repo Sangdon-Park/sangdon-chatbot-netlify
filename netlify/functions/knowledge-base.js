@@ -1,14 +1,15 @@
 // Auto-synced knowledge base for Sangdon Park homepage chatbot
-// Generated from publications.html and curated profile/course facts
+// Generated from homepage pages and publication scripts
+// Generated at 2026-03-01T15:16:05.776Z from https://sangdon-park.github.io
 
 const SITE_PROFILE = {
-  "nameKo": "\uBC15\uC0C1\uB3C8",
+  "nameKo": "박상돈",
   "nameEn": "Sangdon Park",
   "labName": "AxGS Lab",
   "labExpanded": "AI x Games Systems Lab",
-  "titleKo": "\uC870\uAD50\uC218",
+  "titleKo": "조교수",
   "titleEn": "Assistant Professor",
-  "affiliationKo": "\uB300\uC804\uB300\uD559\uAD50 SW\uC735\uD569\uD559\uBD80 \uCEF4\uD4E8\uD130\uACF5\uD559\uACFC",
+  "affiliationKo": "대전대학교 SW융합학부 컴퓨터공학과",
   "affiliationEn": "Department of Computer Engineering, School of SW Convergence, Daejeon University",
   "appointmentDate": "2026-03-01",
   "email": "sangdon.park@dju.kr",
@@ -21,14 +22,43 @@ const SITE_PROFILE = {
   "formerIndustryPeriod": "2025-05 to 2026-02-28",
   "postdocRole": "Postdoctoral Researcher at KAIST Institute for Information Technology Convergence",
   "postdocPeriod": "2017-08 to 2025-04",
+  "educationTimeline": [
+    {
+      "degree": "Ph.D.",
+      "graduation": "2017",
+      "school": "KAIST",
+      "departmentKo": "전기및전자공학부",
+      "departmentEn": "School of Electrical Engineering, KAIST",
+      "advisorKo": "최준균",
+      "advisorEn": "Jun Kyun Choi"
+    },
+    {
+      "degree": "M.S.",
+      "graduation": "2013",
+      "school": "KAIST",
+      "departmentKo": "수리과학과",
+      "departmentEn": "Department of Mathematical Sciences, KAIST",
+      "advisorKo": "황강욱",
+      "advisorEn": "Ganguk Hwang"
+    },
+    {
+      "degree": "B.S.",
+      "graduation": "2011",
+      "school": "KAIST",
+      "departmentKo": "수리과학과",
+      "departmentEn": "Department of Mathematical Sciences, KAIST",
+      "advisorKo": null,
+      "advisorEn": null
+    }
+  ],
   "careerTimeline": [
     {
       "period": "2026-03-01 to present",
-      "role": "Assistant Professor at Daejeon University, Department of Computer Engineering, School of SW Convergence"
+      "role": "대전대학교 SW융합학부 컴퓨터공학과 조교수"
     },
     {
       "period": "2025-05 to 2026-02-28",
-      "role": "Game Developer at Sayberry Games"
+      "role": "세이베리게임즈 게임 개발"
     },
     {
       "period": "2017-08 to 2025-04",
@@ -54,45 +84,57 @@ const SITE_LINKS = {
 const COURSES_2026_SPRING = [
   {
     "code": "DB Systems",
-    "titleKo": "\uB370\uC774\uD130\uBCA0\uC774\uC2A4\uC2DC\uC2A4\uD15C",
+    "titleKo": "데이터베이스시스템",
     "titleEn": "Database Systems",
     "pageKo": "https://sangdon-park.github.io/courses/database-systems-2026-spring.html",
     "pageEn": "https://sangdon-park.github.io/courses/database-systems-2026-spring-en.html",
-    "gradingSummaryKo": "\uD034\uC988/\uACFC\uC81C 30% \u00b7 \uC911\uAC04\uACE0\uC0AC 30% \u00b7 \uAE30\uB9D0\uACE0\uC0AC 30% \u00b7 \uCD9C\uC11D 10%",
-    "gradingSummaryEn": "Quizzes/Assignments 30% + Midterm 30% + Final 30% + Attendance 10%"
+    "gradingSummaryKo": "퀴즈 및 과제 30% · 중간고사 30% · 기말고사 30% · 출석 10%",
+    "gradingSummaryEn": "Quizzes & Homework 30% · Midterm 30% · Final 30% · Attendance 10%"
   },
   {
     "code": "AI",
-    "titleKo": "\uC778\uACF5\uC9C0\uB2A5",
+    "titleKo": "인공지능",
     "titleEn": "Artificial Intelligence",
     "pageKo": "https://sangdon-park.github.io/courses/artificial-intelligence-2026-spring.html",
     "pageEn": "https://sangdon-park.github.io/courses/artificial-intelligence-2026-spring-en.html",
-    "gradingSummaryKo": "\uC911\uAC04\uACE0\uC0AC 30\uC810 \u00b7 \uAE30\uB9D0\uACE0\uC0AC 30\uC810 \u00b7 \uD034\uC988 10\uC810 \u00b7 \uAE30\uB9D0 \uD504\uB85C\uC81D\uD2B8 20\uC810 \u00b7 \uCD9C\uC11D+\uD575\uC2EC\uC5ED\uB7C9\uD3C9\uAC00 10\uC810",
-    "gradingSummaryEn": "Midterm 30 + Final 30 + Quiz 10 + Final Project 20 + Attendance/Core Competency 10"
+    "gradingSummaryKo": "중간고사 30점 · 기말고사 30점 · 퀴즈 10점 · 기말 프로젝트 20점 · 출석 + 핵심역량평가 10점",
+    "gradingSummaryEn": "Midterm 30 · Final 30 · Quiz 10 · Final Project 20 · Attendance + Core Competency 10"
   },
   {
     "code": "Capstone",
-    "titleKo": "\uCEA1\uC2A4\uD1A4\uB514\uC790\uC778",
+    "titleKo": "캡스톤디자인",
     "titleEn": "Capstone Design",
     "pageKo": "https://sangdon-park.github.io/courses/capstone-design-2026-spring.html",
     "pageEn": "https://sangdon-park.github.io/courses/capstone-design-2026-spring-en.html",
-    "gradingSummaryKo": "\uC0B0\uCD9C\uBB3C/\uBC1C\uD45C/\uD300\uAE30\uC5EC\uB3C4 \uAE30\uC900 (\uC0C1\uC138 \uD3C9\uAC00\uD45C\uB294 \uACFC\uBAA9 \uD398\uC774\uC9C0 \uCC38\uC870)",
+    "gradingSummaryKo": "산출물/발표/팀기여도 기준 (상세 평가표는 과목 페이지 참조)",
     "gradingSummaryEn": "Deliverables/presentation/team contribution rubric (see course page for details)"
   }
 ];
 
 const NEWS_POSTS = [
   {
-    "title": "\uB3CC\uC544\uAC00\uB294 \uAE38\uC774 \uAC00\uC7A5 \uBE60\uB978 \uAE38\uC774\uC5C8\uB2E4",
+    "title": "돌아가는 길이 가장 빠른 길이었다",
     "date": "2026-03-01",
     "url": "https://sangdon-park.github.io/articles/dju-appointment-20260301.html",
-    "summary": "Assistant professor appointment at Daejeon University on 2026-03-01 and transition through AI industry practice."
+    "summary": "포닥 시절의 실패, AI 실무 몰입, 세이베리게임즈에서의 경험을 거쳐 대전대학교 조교수 임용으로 이어진 과정을 정리했습니다."
   },
   {
-    "title": "AI LLM\uC5D0 \uBBF8\uCCD0\uC788\uB358 8\uAC1C\uC6D4",
-    "date": "2025-04-07",
-    "url": "https://sangdon-park.github.io/articles/ai-llm-8months-passion.html",
-    "summary": "Hands-on AI/LLM implementation journey and engineering notes."
+    "title": "교수 홈페이지 구조로 전면 개편",
+    "date": "2026-02-28",
+    "url": null,
+    "summary": "메인, 논문, 과목 페이지를 분리해 정보 접근성을 개선했습니다. 강의자료와 과제 공지는 과목별 페이지에서 관리합니다."
+  },
+  {
+    "title": "AxGS Lab 연구 프로그램 시작",
+    "date": "2026-03-05",
+    "url": null,
+    "summary": "2026년 1학기부터 AI x Games Systems, Trustworthy AI, Optimization 3개 트랙으로 프로젝트를 운영합니다. 학부 연구생과 캡스톤 팀은 트랙별 미팅에 참여할 수 있습니다."
+  },
+  {
+    "title": "세이베리게임즈 근무 및 1인 게임 개발",
+    "date": "2025-05 ~ Present",
+    "url": "https://store.steampowered.com/app/4256880/Hexagon_Soup/",
+    "summary": "2025년 5월부터 2026년 2월 28일까지 세이베리게임즈에서 게임 개발을 진행했습니다. 현재는 1인 개발 프로젝트 Hexagon Soup 를 개발 중입니다."
   }
 ];
 
@@ -122,7 +164,7 @@ const PUBLICATIONS = [
       "real-time",
       "dynamic",
       "pricing",
-      "edge computing",
+      "edge",
       "computing",
       "services"
     ]
@@ -159,7 +201,7 @@ const PUBLICATIONS = [
     ],
     "doi": null,
     "keywords": [
-      "power allocation",
+      "power",
       "frequency",
       "band",
       "allocation",
@@ -202,7 +244,7 @@ const PUBLICATIONS = [
       "joint",
       "subcarrier",
       "transmission",
-      "power allocation",
+      "power",
       "allocation",
       "ofdma-based"
     ]
@@ -221,12 +263,12 @@ const PUBLICATIONS = [
     ],
     "doi": null,
     "keywords": [
-      "novel",
       "cooperative",
       "transmission",
       "uav-assisted",
       "wireless",
-      "sensor"
+      "sensor",
+      "networks"
     ]
   },
   {
@@ -241,7 +283,7 @@ const PUBLICATIONS = [
     ],
     "doi": "https://doi.org/10.1109/ACCESS.2022.3151355",
     "keywords": [
-      "power allocation",
+      "power",
       "scheduling",
       "charging",
       "facility",
@@ -367,7 +409,7 @@ const PUBLICATIONS = [
       "series",
       "forecasting",
       "day-ahead",
-      "energy trading",
+      "energy",
       "trading"
     ]
   },
@@ -384,7 +426,7 @@ const PUBLICATIONS = [
     "doi": "https://doi.org/10.1109/TII.2018.2883655",
     "keywords": [
       "battery-wear-model-based",
-      "energy trading",
+      "energy",
       "trading",
       "electric",
       "vehicles",
@@ -407,7 +449,7 @@ const PUBLICATIONS = [
       "multiple",
       "channel",
       "access",
-      "cognitive radio"
+      "cognitive"
     ]
   },
   {
@@ -428,8 +470,7 @@ const PUBLICATIONS = [
       "cooperative",
       "transmission",
       "intelligent",
-      "transportation",
-      "systems"
+      "transportation"
     ]
   },
   {
@@ -444,11 +485,11 @@ const PUBLICATIONS = [
     ],
     "doi": "https://doi.org/10.1007/s11036-018-1164-2",
     "keywords": [
-      "power allocation",
+      "power",
       "efficient",
       "clustering",
       "mobile",
-      "edge computing",
+      "edge",
       "computing"
     ]
   },
@@ -483,12 +524,12 @@ const PUBLICATIONS = [
     ],
     "doi": "https://doi.org/10.1109/ACCESS.2019.2912758",
     "keywords": [
+      "comparison",
+      "between",
       "seller",
       "buyer",
       "pricing",
-      "systems",
-      "energy trading",
-      "trading"
+      "energy"
     ]
   },
   {
@@ -527,7 +568,7 @@ const PUBLICATIONS = [
       "pricing",
       "energy-efficient",
       "mobile",
-      "edge computing",
+      "edge",
       "computation"
     ]
   },
@@ -548,7 +589,7 @@ const PUBLICATIONS = [
       "levels",
       "big-data",
       "market",
-      "multiple"
+      "over"
     ]
   },
   {
@@ -563,9 +604,9 @@ const PUBLICATIONS = [
     ],
     "doi": null,
     "keywords": [
-      "energy trading",
+      "energy",
       "trading",
-      "microgrid",
+      "microgrids",
       "future",
       "forecasting",
       "errors"
@@ -589,7 +630,7 @@ const PUBLICATIONS = [
       "computation",
       "offloading",
       "maximizing",
-      "energy trading"
+      "energy"
     ]
   },
   {
@@ -605,9 +646,9 @@ const PUBLICATIONS = [
     "doi": "https://doi.org/10.1109/ACCESS.2017.2766233",
     "keywords": [
       "event-driven",
-      "energy trading",
+      "energy",
       "trading",
-      "microgrid",
+      "microgrids",
       "aperiodic",
       "market"
     ]
@@ -628,9 +669,9 @@ const PUBLICATIONS = [
       "learning-based",
       "adaptive",
       "imputation",
-      "method",
       "knn",
-      "algorithm"
+      "algorithm",
+      "missing"
     ]
   },
   {
@@ -649,7 +690,7 @@ const PUBLICATIONS = [
       "contribution-based",
       "energy-trading",
       "mechanism",
-      "microgrid",
+      "microgrids",
       "future",
       "smart"
     ]

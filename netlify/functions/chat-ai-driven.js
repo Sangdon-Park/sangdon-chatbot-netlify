@@ -102,6 +102,10 @@ function isPublicationIntent(text = '') {
   return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
 }
 
+function isUndergradIntent(text = '') {
+  return /(학부생|학부\s*연구생|학부연구생|undergrad|undergraduate)/i.test(text);
+}
+
 function isResearchIntent(text = '') {
   return /(주\s*연구|연구\s*분야|연구\s*주제|연구\s*키워드|research\s*area|research\s*focus|research\s*topic|what do you research|main research)/i.test(text);
 }
@@ -116,6 +120,10 @@ function isFirstAuthorIntent(text = '') {
 
 function isPublicationCountIntent(text = '') {
   return isPublicationIntent(text) && isCountIntent(text);
+}
+
+function isAskMyNameIntent(text = '') {
+  return /(내\s*이름\s*(뭐|뭔|기억)|제\s*이름\s*(뭐|뭔|기억)|my\s*name\s*\?|what'?s\s+my\s+name|remember\s+my\s+name)/i.test(text);
 }
 
 function isProfileIntent(text = '') {
@@ -147,6 +155,47 @@ function findCourseFromHistory(history = []) {
     const c = findCourseInText(history[i]?.content || '');
     if (c) return c;
   }
+  return null;
+}
+
+function extractNameFromText(text = '') {
+  const source = String(text || '').trim();
+  if (!source) return null;
+
+  const patterns = [
+    /(?:내|제|저의)\s*이름(?:은|는)?\s*([가-힣A-Za-z][가-힣A-Za-z\s]{0,20})/i,
+    /저는\s*([가-힣A-Za-z][가-힣A-Za-z\s]{0,20})\s*(?:입니다|이에요|예요|야)\b/i,
+    /my\s+name\s+is\s+([A-Za-z][A-Za-z\s'-]{0,30})/i,
+    /i(?:\s*am|'m)\s+([A-Za-z][A-Za-z\s'-]{0,30})/i
+  ];
+
+  for (const pattern of patterns) {
+    const m = source.match(pattern);
+    if (!m || !m[1]) continue;
+    const name = m[1]
+      .replace(/[\?\!\.,]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (name.length < 2 || name.length > 24) continue;
+    if (/^(뭐|뭐게|뭔데|무엇|누구|what|name)$/i.test(name)) continue;
+    return name;
+  }
+
+  return null;
+}
+
+function getRememberedUserName(history = [], latestMessage = '') {
+  const latest = extractNameFromText(latestMessage);
+  if (latest) return latest;
+
+  const safe = Array.isArray(history) ? history : [];
+  for (let i = safe.length - 1; i >= 0; i -= 1) {
+    const item = safe[i];
+    if (item?.role !== 'user') continue;
+    const parsed = extractNameFromText(item?.content || '');
+    if (parsed) return parsed;
+  }
+
   return null;
 }
 
@@ -822,6 +871,15 @@ function buildBaseDocs() {
     year: 2026
   });
 
+  docs.push({
+    id: 'student-opportunities',
+    type: 'mentoring',
+    title: 'Undergraduate Research Opportunities',
+    text: `Undergraduate researchers can join lab projects, capstone teams, and semester projects. Contact via ${SITE_PROFILE.email} and collaboration page ${SITE_LINKS.collaborationKo}.`,
+    url: SITE_LINKS.collaborationKo,
+    year: 2026
+  });
+
   return docs;
 }
 
@@ -991,6 +1049,18 @@ async function retrieve(query, apiKey, runtimeDocs = []) {
       .slice(0, 2);
     const pubDocs = ranked.filter((r) => r.doc.type === 'publication').slice(0, 21);
     candidates = [...statsDocs, ...pubDocs];
+  } else if (isUndergradIntent(query)) {
+    const mentoringDocs = ranked
+      .filter((r) => {
+        const url = String(r.doc.url || '');
+        const text = `${r.doc.title || ''} ${r.doc.text || ''}`;
+        return r.doc.type === 'mentoring'
+          || r.doc.type === 'contact'
+          || /collaboration|contact/i.test(url)
+          || /학부|연구생|undergraduate|capstone|mentoring|문의/.test(text);
+      })
+      .slice(0, 22);
+    candidates = mentoringDocs;
   } else if (isResearchIntent(query)) {
     const factDocs = ranked
       .filter((r) => r.doc.type === 'site_fact' && /research areas/i.test(String(r.doc.title || '')))
@@ -1076,6 +1146,7 @@ function buildPrompt(message, history, retrieved, lang) {
     '- If context is insufficient, say the information is not currently confirmed in provided materials.',
     '- For exam-range or grading questions, quote exact range/weights from context.',
     '- For follow-up questions, use recent conversation to resolve omitted subject/course.',
+    '- Keep conversational continuity within the same session (e.g., user-introduced name/preferences).',
     `- Contact email is ${SITE_PROFILE.email}.`,
     '- Keep answer concise and factual (1-4 sentences).',
     `- Respond in ${lang === 'ko' ? 'Korean' : 'English'}.`,
@@ -1208,9 +1279,49 @@ function summarizeTopDoc(top, lang) {
   );
 }
 
+function buildUndergradReply(lang, userName = null) {
+  const prefixKo = userName ? `${userName}님, ` : '';
+  const prefixEn = userName ? `${userName}, ` : '';
+  return tr(
+    lang,
+    `${prefixKo}학부생은 1) 학부 연구생 프로젝트 참여, 2) 캡스톤 팀 합류, 3) 과목 기반 미니 프로젝트 확장 형태로 참여할 수 있습니다. 지원 메일은 [과목명][학번] 형식으로 ${SITE_PROFILE.email}로 보내고, 관심 트랙/가능 시간/구현 경험(GitHub)을 함께 적어주시면 됩니다. 자세한 안내: ${SITE_LINKS.collaborationKo}`,
+    `${prefixEn}undergraduate students can join via (1) lab mini-projects, (2) capstone teams, and (3) course-to-project extensions. Send email to ${SITE_PROFILE.email} with course/student-id format, interests, available time, and implementation background (GitHub). Details: ${SITE_LINKS.collaborationEn}`
+  );
+}
+
 function buildFallbackReply(message, retrieved, lang, history = []) {
+  const rememberedName = getRememberedUserName(history, message);
+  const statedName = extractNameFromText(message);
+
+  if (statedName && !isAskMyNameIntent(message)) {
+    return tr(
+      lang,
+      `${statedName}님, 반갑습니다. 궁금한 연구/과목/프로젝트 질문 바로 주시면 이어서 안내하겠습니다.`,
+      `Nice to meet you, ${statedName}. Ask anything about research, courses, or projects and I will continue from here.`
+    );
+  }
+
+  if (isAskMyNameIntent(message)) {
+    if (rememberedName) {
+      return tr(
+        lang,
+        `이름은 ${rememberedName}님으로 기억하고 있습니다.`,
+        `I remember your name as ${rememberedName}.`
+      );
+    }
+    return tr(
+      lang,
+      '아직 이름 정보를 확인하지 못했습니다. "내 이름은 ○○" 형태로 알려주시면 세션 동안 이어서 기억하겠습니다.',
+      'I do not have your name yet. Tell me in the form "My name is ...", and I will keep it during this session.'
+    );
+  }
+
   if (isContactIntent(message)) {
     return tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`);
+  }
+
+  if (isUndergradIntent(message)) {
+    return buildUndergradReply(lang, rememberedName);
   }
 
   if (isLinkIntent(message)) {
@@ -1608,7 +1719,10 @@ exports.handler = async (event) => {
       isGradingIntent(message) ||
       isTextbookIntent(message) ||
       isLinkIntent(message) ||
+      isUndergradIntent(message) ||
       isResearchIntent(message) ||
+      isAskMyNameIntent(message) ||
+      Boolean(extractNameFromText(message)) ||
       isPublicationCountIntent(message) ||
       isFirstAuthorIntent(message);
     let reply = null;

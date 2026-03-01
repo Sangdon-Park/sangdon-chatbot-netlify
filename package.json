@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "node test-top-collaborators.js",
-    "test:prod-collab": "node test-top-collaborators.js"
+    "test:prod-collab": "node test-top-collaborators.js",
+    "sync:knowledge-base": "node scripts/sync-knowledge-base.js",
+    "sync:knowledge-base:local": "set HOMEPAGE_REPO_DIR=D:\\Github\\Sangdon-Park.github.io&& node scripts/sync-knowledge-base.js"
   },
   "keywords": [],
   "author": "",
