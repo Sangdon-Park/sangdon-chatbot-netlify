@@ -12,53 +12,22 @@ const {
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const EMBEDDING_MODEL = 'text-embedding-004';
-const MAX_HISTORY = 8;
-const MAX_RETRIEVED_DOCS = 6;
-const MAX_SEARCH_RESULTS = 5;
+const MAX_HISTORY = 10;
+const MAX_RESULTS = 5;
+const MAX_RETRIEVED = 6;
 
-const TEXT = {
-  ko: {
-    greeting: '안녕하세요. 무엇을 도와드릴까요?',
-    searching: '질문 확인했습니다. 관련 정보를 찾아보겠습니다.',
-    chatHint: '구체적으로 질문해 주시면 홈페이지 기준으로 정확히 안내하겠습니다.',
-    fallback: '질문을 확인했습니다. 공개된 정보 기준으로 확답이 어려우면 논문 페이지나 이메일로 확인해 주세요.',
-    contactLabel: '연락처',
-    resultsHint: '관련 자료를 찾았습니다. 이어서 구체 질문을 주시면 더 정확히 안내하겠습니다.'
-  },
-  en: {
-    greeting: 'Hello. How can I help you?',
-    searching: 'Got it. I will look up relevant information.',
-    chatHint: 'If you ask a specific question, I will answer with facts from the homepage.',
-    fallback: 'I received your question. If publicly available context is insufficient, please check the publications page or contact email.',
-    contactLabel: 'Contact',
-    resultsHint: 'I found relevant information. Ask a specific follow-up question for a more precise answer.'
-  }
-};
-
-const STOPWORDS = new Set([
-  'the', 'and', 'for', 'with', 'from', 'about', 'what', 'which', 'when', 'where',
-  'who', 'how', 'tell', 'please', 'paper', 'papers', 'publication', 'publications',
-  'journal', 'journals', '논문', '학술', '저널', '관련'
-]);
-
-const KNOWLEDGE_DOCS = buildKnowledgeDocs();
-
-function t(lang, koOrKey, enText) {
-  if (typeof enText === 'string') {
-    return lang === 'ko' ? koOrKey : enText;
-  }
-  const key = koOrKey;
-  return (TEXT[lang] && TEXT[lang][key]) || TEXT.en[key] || '';
+function tr(lang, ko, en) {
+  return lang === 'ko' ? ko : en;
 }
 
 function containsHangul(text = '') {
-  return /[\u3131-\u314E\u314F-\u3163\uAC00-\uD7A3]/.test(String(text));
+  return /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(String(text));
 }
 
 function detectLanguage(message = '', history = []) {
   if (containsHangul(message)) return 'ko';
   for (let i = history.length - 1; i >= 0; i -= 1) {
-    if (containsHangul(history[i] && history[i].content ? history[i].content : '')) return 'ko';
+    if (containsHangul(history[i]?.content || '')) return 'ko';
   }
   return 'en';
 }
@@ -79,99 +48,71 @@ function tokenize(text = '') {
     .filter((v) => v.length > 1);
 }
 
-function isGreetingOnlyMessage(message = '') {
-  const clean = normalize(message).replace(/[!?.,]/g, '');
-
-  if (/^(hello|hi|hey|good morning|good afternoon|good evening)$/.test(clean)) return true;
-  if (/^(\uC548\uB155|\uC548\uB155\uD558\uC138\uC694|\u314E\u3147|\uD558\uC774|\uD5EC\uB85C|g2|h2)$/u.test(clean)) return true;
-
-  // General short greeting patterns (e.g., "?2", "??2", "hii")
-  if (/^\uC548\uB155[a-z0-9]*$/u.test(clean)) return true;
-  if (/^\u314E+[a-z0-9]*$/u.test(clean)) return true;
-  if (/^h[iy]+[0-9]*$/.test(clean)) return true;
-
+function isGreeting(message = '') {
+  const compact = normalize(message).replace(/\s+/g, '');
+  if (!compact) return false;
+  if (/^(hello|hi|hey|goodmorning|goodafternoon|goodevening)$/i.test(compact)) return true;
+  if (/^(g2|h2|yo|yoo|hii+)$/i.test(compact)) return true;
+  if (/^(안녕|안녕하세요|ㅎㅇ|하이|헬로)$/.test(compact)) return true;
+  if (/^ㅎ+[a-z0-9]*$/.test(compact)) return true;
+  if (/^안녕[a-z0-9]*$/.test(compact)) return true;
   return false;
-}
-
-function isGenericGreetingReply(text = '') {
-  const n = normalize(text);
-  return n.includes('무엇을 도와드릴까요') || n.includes('how can i help');
 }
 
 function isPublicationIntent(text = '') {
-  return /(논문|학술|저널|publication|paper|journal|doi|ieee|scholar)/i.test(text);
-}
-
-function isCountIntent(text = '') {
-  return /(how many|count|number of|총|몇|개수|편|건|횟수)/i.test(text);
-}
-
-function isLatestIntent(text = '') {
-  return /(latest|recent|newest|최근|최신|근래)/i.test(text);
-}
-
-function isRepresentativeIntent(text = '') {
-  return /(대표|핵심|highlight|representative|key paper|selected)/i.test(text);
-}
-
-function isContactIntent(text = '') {
-  return /(contact|email|mail|reach|연락|이메일|문의)/i.test(text);
+  return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
 }
 
 function isCourseIntent(text = '') {
-  return /(course|class|lecture|teaching|강의|과목|수업|교육|캡스톤|인공지능|database|db)/i.test(text);
+  return /(수업|강의|과목|가르치|이번\s*학기|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
+}
+
+function isContactIntent(text = '') {
+  return /(연락|이메일|문의|메일|email|contact|reach)/i.test(text);
 }
 
 function isProfileIntent(text = '') {
-  return /(about|bio|who are you|who are u|who is this|what do you do|profile|cv|\uB204\uAD6C|\uC18C\uAC1C|\uC57D\uB825|\uD559\uB825|\uACBD\uB825|\uC18C\uC18D|\uC9C1\uC704|\uC5F0\uAD6C|\uBB34\uC2A8\s?\uC77C)/i.test(text);
+  return /(누구|소개|약력|학력|경력|소속|직위|연구|무슨\s*일|who are you|profile|bio|about|cv)/i.test(text);
 }
 
 function isProjectIntent(text = '') {
-  return /(hexagon|steam|project|프로젝트|game|게임)/i.test(text);
+  return /(hexagon|steam|project|프로젝트|게임|game)/i.test(text);
+}
+
+function isCountIntent(text = '') {
+  return /(몇|개수|총|편|건|횟수|how many|count|number of)/i.test(text);
+}
+
+function isLatestIntent(text = '') {
+  return /(최근|최신|근래|latest|recent|newest)/i.test(text);
+}
+
+function isRepresentativeIntent(text = '') {
+  return /(대표|핵심|하이라이트|representative|highlight|selected|key)/i.test(text);
 }
 
 function isCoauthorIntent(text = '') {
-  return /(coauthor|collaborator|공동저자|공동연구|같이)/i.test(text);
+  return /(공동저자|공동연구|같이|coauthor|collaborator|collaboration)/i.test(text);
 }
 
 function isMostIntent(text = '') {
-  return /(most|top|\uAC00\uC7A5|\uCD5C\uB2E4|\uB9CE\uC774)/i.test(text);
+  return /(가장|최다|많이|most|top)/i.test(text);
 }
 
-function isLikelySmallTalk(message = '') {
-  const text = normalize(message);
-  if (!text) return false;
+function isBeforeThatIntent(text = '') {
+  return /(그전|그 전|이전|전에는|before that|before|prior)/i.test(text);
+}
 
-  if (
-    isPublicationIntent(text) ||
-    isCourseIntent(text) ||
-    isContactIntent(text) ||
-    isProjectIntent(text) ||
-    isProfileIntent(text)
-  ) {
-    return false;
-  }
-
-  const raw = String(message || '');
-  if (/[??]/.test(raw) && (/(who|what|how|why|when|where)/i.test(text) || /\uB204\uAD6C|\uBB34\uC2A8|\uC5B4\uB5A4|\uC5B4\uB514|\uC65C|\uC5B8\uC81C/.test(raw))) {
-    return false;
-  }
-
-  const compact = text.replace(/\s+/g, '');
-  const tokenCount = text.split(/\s+/).filter(Boolean).length;
-
-  if (compact.length <= 4 && tokenCount <= 2) return true;
-  if (compact.length <= 6 && tokenCount <= 2 && /^(ok|okay|thanks|thx|\u3147\u314B|\uAC10\uC0AC|\uACE0\uB9C8\uC6CC)/i.test(compact)) return true;
-
-  return false;
+function safeHistory(history = []) {
+  return Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
 }
 
 function classifyStep1(message, lang) {
-  if (isGreetingOnlyMessage(message) || isLikelySmallTalk(message)) {
+  if (isGreeting(message)) {
     return {
       action: 'CHAT',
       query: '',
-      initialMessage: t(lang, 'greeting'),
+      initialMessage: tr(lang, '안녕하세요. 무엇을 도와드릴까요?', 'Hello. How can I help you?'),
       needsSecondStep: false
     };
   }
@@ -179,144 +120,125 @@ function classifyStep1(message, lang) {
   return {
     action: 'SEARCH',
     query: String(message || '').trim(),
-    initialMessage: t(lang, 'searching'),
+    initialMessage: tr(lang, '질문 확인했습니다. 관련 정보를 찾아보겠습니다.', 'Got it. I will look up relevant information.'),
     needsSecondStep: true
   };
 }
 
-function buildKnowledgeDocs() {
+function careerTimeline() {
+  if (Array.isArray(SITE_PROFILE.careerTimeline) && SITE_PROFILE.careerTimeline.length) {
+    return SITE_PROFILE.careerTimeline;
+  }
+  return [
+    {
+      period: '2026-03-01 to present',
+      role: 'Assistant Professor at Daejeon University'
+    },
+    {
+      period: SITE_PROFILE.formerIndustryPeriod || '2025-05 to 2026-02-28',
+      role: SITE_PROFILE.formerIndustryRole || 'Game Developer at Sayberry Games'
+    },
+    {
+      period: SITE_PROFILE.postdocPeriod || '2017-08 to 2025-04',
+      role: SITE_PROFILE.postdocRole || 'Postdoctoral Researcher at KAIST Institute for Information Technology Convergence'
+    }
+  ];
+}
+
+function buildDocs() {
   const docs = [];
+  const timeline = careerTimeline();
 
   docs.push({
     id: 'profile',
     type: 'profile',
     title: `${SITE_PROFILE.nameKo} (${SITE_PROFILE.nameEn})`,
-    year: 2026,
+    text: `${SITE_PROFILE.nameKo} 교수는 ${SITE_PROFILE.appointmentDate}부터 ${SITE_PROFILE.affiliationKo} 조교수입니다. 공식 이메일은 ${SITE_PROFILE.email}입니다.`,
     url: SITE_LINKS.aboutKo,
-    journal: '',
-    keywords: [
-      SITE_PROFILE.nameKo,
-      SITE_PROFILE.nameEn,
-      'AxGS Lab',
-      'Assistant Professor',
-      '대전대학교'
-    ],
-    text:
-      `${SITE_PROFILE.nameKo}(${SITE_PROFILE.nameEn})은 ${SITE_PROFILE.affiliationKo} 조교수입니다. ` +
-      `임용일은 ${SITE_PROFILE.appointmentDate}이며, 공식 이메일은 ${SITE_PROFILE.email}입니다.`
+    year: 2026
   });
 
-  docs.push({
-    id: 'career',
-    type: 'career',
-    title: 'Career Timeline',
-    year: 2026,
-    url: SITE_LINKS.aboutKo,
-    journal: '',
-    keywords: ['career', '세이베리게임즈', 'Sayberry Games', '대전대학교'],
-    text:
-      `2025-05부터 2026-02-28까지 ${SITE_PROFILE.formerIndustryRole}로 근무했고, ` +
-      `${SITE_PROFILE.appointmentDate}부터 대전대학교에서 근무 중입니다.`
-  });
-
-  docs.push({
-    id: 'research',
-    type: 'research',
-    title: 'Research Areas',
-    year: 2026,
-    url: SITE_LINKS.homeKo + '#research',
-    journal: '',
-    keywords: ['AI x Games Systems', 'Trustworthy AI', 'Optimization', 'RAG', 'LLM'],
-    text: '핵심 키워드는 AI x Games Systems, Trustworthy AI, Optimization이며, LLM/RAG 시스템을 실제 서비스 단위로 구현합니다.'
-  });
-
-  docs.push({
-    id: 'contact',
-    type: 'contact',
-    title: 'Contact & Collaboration',
-    year: 2026,
-    url: SITE_LINKS.collaborationKo,
-    journal: '',
-    keywords: ['contact', 'email', '문의', '공동연구'],
-    text: `문의 이메일은 ${SITE_PROFILE.email}이며, 학생/공동연구 안내 페이지는 ${SITE_LINKS.collaborationKo}입니다.`
-  });
-
-  docs.push({
-    id: 'project',
-    type: 'project',
-    title: SITE_PROFILE.currentProject,
-    year: 2026,
-    url: SITE_PROFILE.currentProjectUrl,
-    journal: '',
-    keywords: ['Hexagon Soup', 'Steam', 'solo development', '게임'],
-    text: `Hexagon Soup는 현재 진행 중인 1인 개발 프로젝트이며 Steam 링크는 ${SITE_PROFILE.currentProjectUrl}입니다.`
+  timeline.forEach((item, idx) => {
+    docs.push({
+      id: `career-${idx}`,
+      type: 'career',
+      title: `Career: ${item.period}`,
+      text: `${item.period}: ${item.role}`,
+      url: SITE_LINKS.aboutKo,
+      year: Number(String(item.period).slice(0, 4)) || 0
+    });
   });
 
   docs.push({
     id: 'publication-stats',
     type: 'publication_stats',
     title: 'Publication Stats',
-    year: 2026,
+    text: `Google Scholar(${SITE_PROFILE.scholarId}) ${PUBLICATION_STATS.sourceDate} sync: works ${PUBLICATION_STATS.scholarWorks}, cited by ${PUBLICATION_STATS.citedBy}. Homepage categories: journals ${PUBLICATION_STATS.journals}, conferences ${PUBLICATION_STATS.conferences}, standards ${PUBLICATION_STATS.standards}, patents ${PUBLICATION_STATS.patents}.`,
     url: SITE_LINKS.publications,
-    journal: '',
-    keywords: ['Google Scholar', 'cited by', 'works', 'publications', '논문 수'],
-    text:
-      `Google Scholar(${SITE_PROFILE.scholarId}) ${PUBLICATION_STATS.sourceDate} 기준 works ${PUBLICATION_STATS.scholarWorks}, ` +
-      `cited by ${PUBLICATION_STATS.citedBy}. 홈페이지 분류 기준 국제저널 ${PUBLICATION_STATS.journals}편, 국제학회 ${PUBLICATION_STATS.conferences}편, ITU-T ${PUBLICATION_STATS.standards}건, 특허 ${PUBLICATION_STATS.patents}건.`
+    year: 2026
   });
 
-  for (const course of COURSES_2026_SPRING) {
+  for (const c of COURSES_2026_SPRING || []) {
     docs.push({
-      id: `course-${course.code.toLowerCase().replace(/\s+/g, '-')}`,
+      id: `course-${c.code}`,
       type: 'course',
-      title: `${course.titleKo} (${course.titleEn})`,
-      year: 2026,
-      url: course.pageKo,
-      journal: '',
-      keywords: [course.titleKo, course.titleEn, 'course', '강의', '2026-1'],
-      text: `과목 페이지: ${course.pageKo}. 영문 페이지: ${course.pageEn}.`
+      title: `${c.titleKo} (${c.titleEn})`,
+      text: `2026 Spring course: ${c.titleKo} (${c.titleEn}). Page: ${c.pageKo}`,
+      url: c.pageKo,
+      year: 2026
     });
   }
 
-  for (const post of NEWS_POSTS) {
+  for (const post of NEWS_POSTS || []) {
     docs.push({
       id: `news-${post.date}`,
       type: 'news',
       title: post.title,
-      year: Number((post.date || '').slice(0, 4)) || 0,
+      text: `${post.title} (${post.date}): ${post.summary}`,
       url: post.url,
-      journal: '',
-      keywords: [post.title, 'news', 'post', 'career', 'AI'],
-      text: `${post.title} (${post.date}) - ${post.summary}.`
+      year: Number(String(post.date || '').slice(0, 4)) || 0
     });
   }
 
-  for (const pub of PUBLICATIONS) {
-    const authors = Array.isArray(pub.authors) ? pub.authors.join(', ') : '';
-    const keywords = Array.isArray(pub.keywords) ? pub.keywords.join(', ') : '';
+  for (const p of PUBLICATIONS || []) {
     docs.push({
-      id: `pub-${pub.year}-${slugify(pub.title)}`,
+      id: `pub-${p.year}-${(p.title || '').slice(0, 40)}`,
       type: 'publication',
-      title: pub.title,
-      year: pub.year || 0,
-      url: pub.doi || SITE_LINKS.publications,
-      journal: pub.journal || '',
-      keywords: [pub.journal || '', ...(pub.keywords || [])],
-      text: `Title: ${pub.title}. Journal: ${pub.journal}. Year: ${pub.year}. Authors: ${authors}. DOI: ${pub.doi || 'N/A'}. Keywords: ${keywords}.`
+      title: p.title,
+      text: `Title: ${p.title}. Journal: ${p.journal}. Year: ${p.year}. Authors: ${(p.authors || []).join(', ')}. DOI: ${p.doi || 'N/A'}.`,
+      url: p.doi || SITE_LINKS.publications,
+      year: p.year || 0,
+      journal: p.journal || ''
     });
   }
+
+  docs.push({
+    id: 'project',
+    type: 'project',
+    title: SITE_PROFILE.currentProject,
+    text: `${SITE_PROFILE.currentProject}. Link: ${SITE_PROFILE.currentProjectUrl}`,
+    url: SITE_PROFILE.currentProjectUrl,
+    year: 2026
+  });
+
+  docs.push({
+    id: 'contact',
+    type: 'contact',
+    title: 'Contact & Collaboration',
+    text: `Email: ${SITE_PROFILE.email}. Collaboration page: ${SITE_LINKS.collaborationKo}`,
+    url: SITE_LINKS.collaborationKo,
+    year: 2026
+  });
 
   return docs;
 }
 
-function slugify(text = '') {
-  return String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
-}
+const DOCS = buildDocs();
 
 function lexicalScore(query, doc) {
-  const qTokens = tokenize(query).filter((tk) => !STOPWORDS.has(tk));
+  const qTokens = tokenize(query);
   if (!qTokens.length) return 0;
-  const hay = normalizeForMatch([doc.title, doc.text, doc.journal, ...(doc.keywords || [])].join(' '));
+  const hay = normalizeForMatch(`${doc.title} ${doc.text}`);
   let score = 0;
   for (const tk of qTokens) {
     if (hay.includes(tk)) score += tk.length >= 5 ? 2 : 1;
@@ -345,11 +267,11 @@ async function getEmbedding(text, apiKey, taskType = 'RETRIEVAL_DOCUMENT') {
     );
     if (!response.ok) return null;
     const data = await response.json();
-    const embedding = data && data.embedding ? data.embedding.values : null;
-    if (embedding) setCachedEmbedding(cacheKey, embedding);
-    return embedding;
+    const emb = data?.embedding?.values || null;
+    if (emb) setCachedEmbedding(cacheKey, emb);
+    return emb;
   } catch (error) {
-    console.error('Embedding error:', error);
+    console.error('embedding error:', error);
     return null;
   }
 }
@@ -369,195 +291,248 @@ function cosineSimilarity(a, b) {
 }
 
 async function retrieve(query, apiKey) {
-  const ranked = KNOWLEDGE_DOCS
+  const ranked = DOCS
     .map((doc) => ({ doc, lexical: lexicalScore(query, doc) }))
-    .sort((x, y) => {
-      if (y.lexical !== x.lexical) return y.lexical - x.lexical;
-      return (y.doc.year || 0) - (x.doc.year || 0);
-    });
+    .sort((a, b) => b.lexical - a.lexical || (b.doc.year || 0) - (a.doc.year || 0));
 
   let candidates = ranked.filter((r) => r.lexical > 0).slice(0, 18);
-  if (candidates.length < 10) {
-    const fallback = isPublicationIntent(query)
+  if (!candidates.length) {
+    candidates = isPublicationIntent(query)
       ? ranked.filter((r) => r.doc.type === 'publication').slice(0, 18)
       : ranked.slice(0, 18);
-    const byId = new Map();
-    for (const item of [...candidates, ...fallback]) byId.set(item.doc.id, item);
-    candidates = Array.from(byId.values()).slice(0, 18);
   }
 
-  const lexicalTop = candidates.slice(0, MAX_RETRIEVED_DOCS).map((item, idx) => ({
-    doc: item.doc,
-    score: (MAX_RETRIEVED_DOCS - idx) / MAX_RETRIEVED_DOCS,
-    lexical: item.lexical,
-    similarity: null
+  const lexicalTop = candidates.slice(0, MAX_RETRIEVED).map((r, idx) => ({
+    doc: r.doc,
+    score: (MAX_RETRIEVED - idx) / MAX_RETRIEVED
   }));
+
   if (!apiKey) return lexicalTop;
+  const qEmb = await getEmbedding(query, apiKey, 'RETRIEVAL_QUERY');
+  if (!qEmb) return lexicalTop;
 
-  const qEmbedding = await getEmbedding(query, apiKey, 'RETRIEVAL_QUERY');
-  if (!qEmbedding) return lexicalTop;
+  const maxLex = Math.max(...candidates.map((c) => c.lexical), 1);
+  const rescored = await Promise.all(candidates.map(async (item) => {
+    const dEmb = await getEmbedding(item.doc.text, apiKey, 'RETRIEVAL_DOCUMENT');
+    const lexicalNorm = item.lexical / maxLex;
+    if (!dEmb) return { doc: item.doc, score: lexicalNorm * 0.2 };
+    const sim = cosineSimilarity(qEmb, dEmb);
+    return { doc: item.doc, score: (0.82 * sim) + (0.18 * lexicalNorm) };
+  }));
 
-  const maxLexical = Math.max(...candidates.map((c) => c.lexical), 1);
-  const scored = await Promise.all(
-    candidates.map(async (item) => {
-      const docEmbedding = await getEmbedding(item.doc.text, apiKey, 'RETRIEVAL_DOCUMENT');
-      const lexicalNorm = item.lexical / maxLexical;
-      if (!docEmbedding) {
-        return { doc: item.doc, score: lexicalNorm * 0.25, lexical: item.lexical, similarity: null };
-      }
-      const sim = cosineSimilarity(qEmbedding, docEmbedding);
-      return {
-        doc: item.doc,
-        score: (0.82 * sim) + (0.18 * lexicalNorm),
-        lexical: item.lexical,
-        similarity: sim
-      };
-    })
-  );
-
-  return scored.sort((a, b) => b.score - a.score).slice(0, MAX_RETRIEVED_DOCS);
+  return rescored.sort((a, b) => b.score - a.score).slice(0, MAX_RETRIEVED);
 }
 
-function formatResultLabel(item, lang) {
-  if (item.type === 'publication') return t(lang, `[논문] ${item.title} (${item.year}) - ${item.journal}`, `[Paper] ${item.title} (${item.year}) - ${item.journal}`);
-  if (item.type === 'course') return t(lang, `[과목] ${item.title}`, `[Course] ${item.title}`);
-  if (item.type === 'project') return t(lang, `[프로젝트] ${item.title}`, `[Project] ${item.title}`);
-  if (item.type === 'news') return t(lang, `[소식] ${item.title}`, `[News] ${item.title}`);
-  if (item.type === 'contact') return t(lang, `[문의] ${item.title}`, `[Contact] ${item.title}`);
-  return `[${item.type}] ${item.title}`;
+function formatSearchTitle(doc) {
+  if (doc.type === 'publication') {
+    return `${doc.title} (${doc.year})${doc.journal ? ` - ${doc.journal}` : ''}`;
+  }
+  return doc.title;
 }
 
-function buildSearchPayload(items, lang) {
-  const normalized = (items || []).map((entry) => {
-    if (entry.doc) return { ...entry.doc, score: entry.score };
-    return entry;
-  }).slice(0, MAX_SEARCH_RESULTS);
-
-  const detailed = normalized.map((item) => ({
-    type: item.type || 'result',
-    item: {
-      title: formatResultLabel(item, lang),
-      url: item.url || null,
-      score: typeof item.score === 'number' ? Number(item.score.toFixed(3)) : null
-    }
+function buildSearchPayload(entries = []) {
+  const sliced = entries.slice(0, MAX_RESULTS).map((e) => ({
+    type: e.doc?.type || e.type || 'result',
+    title: formatSearchTitle(e.doc || e),
+    url: e.doc?.url || e.url || null,
+    score: typeof e.score === 'number' ? Number(e.score.toFixed(3)) : null
   }));
 
   return {
-    searchResults: detailed.length ? detailed.map((x) => x.item.title) : null,
-    searchResultsDetailed: detailed.length ? detailed : null
+    searchResults: sliced.length ? sliced.map((r) => r.title) : null,
+    searchResultsDetailed: sliced.length ? sliced.map((r) => ({
+      type: r.type,
+      item: { title: r.title, url: r.url, score: r.score }
+    })) : null
   };
 }
 
-function findPublicationByQuery(query) {
-  const qTokens = tokenize(query).filter((tk) => !STOPWORDS.has(tk));
+function findPublication(query = '') {
+  const qTokens = tokenize(query);
   if (!qTokens.length) return null;
   let best = null;
-  for (const pub of PUBLICATIONS) {
-    const hay = normalizeForMatch(`${pub.title} ${pub.journal} ${pub.year}`);
+  for (const p of PUBLICATIONS || []) {
+    const hay = normalizeForMatch(`${p.title} ${p.journal} ${p.year}`);
     let score = 0;
     for (const tk of qTokens) if (hay.includes(tk)) score += 1;
-    if (normalizeForMatch(pub.title).includes(normalizeForMatch(query))) score += 6;
-    if (!best || score > best.score) best = { pub, score };
+    if (normalizeForMatch(p.title).includes(normalizeForMatch(query))) score += 6;
+    if (!best || score > best.score) best = { p, score };
   }
-  return best && best.score >= 3 ? best.pub : null;
+  return best && best.score >= 3 ? best.p : null;
 }
 
 function coauthorTop() {
-  const self = new Set([normalize('sangdon park'), normalize(SITE_PROFILE.nameKo), normalize(SITE_PROFILE.nameEn)]);
-  const count = new Map();
-  for (const pub of PUBLICATIONS) {
-    for (const author of pub.authors || []) {
+  const self = new Set([normalize(SITE_PROFILE.nameEn), normalize(SITE_PROFILE.nameKo), normalize('sangdon park')]);
+  const map = new Map();
+  for (const p of PUBLICATIONS || []) {
+    for (const author of p.authors || []) {
       const n = normalize(author);
       if (!n || self.has(n)) continue;
-      count.set(author, (count.get(author) || 0) + 1);
+      map.set(author, (map.get(author) || 0) + 1);
     }
   }
-  return Array.from(count.entries()).sort((a, b) => b[1] - a[1]);
+  return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
 }
 
-function deterministic(message, lang) {
-  if (isGreetingOnlyMessage(message)) {
-    return { reply: t(lang, 'greeting'), docs: [] };
-  }
+function deterministic(message, lang, history = []) {
+  const msg = String(message || '');
+  const timeline = careerTimeline();
+  const timelineDocs = timeline.map((item, idx) => ({
+    type: 'career',
+    title: `${item.period}: ${item.role}`,
+    url: SITE_LINKS.aboutKo,
+    score: 1 - idx * 0.1
+  }));
 
-  if (isContactIntent(message)) {
+  if (isContactIntent(msg)) {
     return {
-      reply: t(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다. 안내 페이지: ${SITE_LINKS.collaborationKo}`, `Contact email: ${SITE_PROFILE.email}. Guide page: ${SITE_LINKS.collaborationEn}`),
+      reply: tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`),
       docs: [{ type: 'contact', title: 'Contact & Collaboration', url: SITE_LINKS.collaborationKo, score: 1 }]
     };
   }
 
-  if (isCourseIntent(message)) {
-    const reply = isCountIntent(message)
-      ? t(lang, `2026년 1학기 담당 과목은 총 3개입니다: 데이터베이스시스템, 인공지능, 캡스톤디자인.`, `There are 3 courses in 2026 Spring: Database Systems, Artificial Intelligence, Capstone Design.`)
-      : t(lang, `이번 학기 과목은 데이터베이스시스템, 인공지능, 캡스톤디자인입니다. 과목 허브: ${SITE_LINKS.coursesHubKo}`, `Courses this semester: Database Systems, Artificial Intelligence, Capstone Design. Course hub: ${SITE_LINKS.coursesHubEn}`);
+  if (isCourseIntent(msg)) {
+    const listKo = (COURSES_2026_SPRING || []).map((c) => c.titleKo).join(', ');
+    const listEn = (COURSES_2026_SPRING || []).map((c) => c.titleEn).join(', ');
     return {
-      reply,
-      docs: COURSES_2026_SPRING.map((c, i) => ({ type: 'course', title: `${c.titleKo} (${c.titleEn})`, url: c.pageKo, score: 1 - i * 0.1 }))
+      reply: tr(
+        lang,
+        `이번 학기 담당 과목은 ${listKo}입니다. 과목 허브: ${SITE_LINKS.coursesHubKo}`,
+        `Courses this semester are ${listEn}. Course hub: ${SITE_LINKS.coursesHubEn}`
+      ),
+      docs: (COURSES_2026_SPRING || []).map((c, i) => ({
+        type: 'course',
+        title: `${c.titleKo} (${c.titleEn})`,
+        url: c.pageKo,
+        score: 1 - i * 0.1
+      }))
     };
   }
 
-  if (isPublicationIntent(message) && isCountIntent(message)) {
+  if (isPublicationIntent(msg) && isCountIntent(msg)) {
     return {
-      reply: t(
+      reply: tr(
         lang,
         `홈페이지 기준 국제저널 ${PUBLICATION_STATS.journals}편, 국제학회 ${PUBLICATION_STATS.conferences}편, ITU-T 표준 ${PUBLICATION_STATS.standards}건, 특허 ${PUBLICATION_STATS.patents}건입니다. Google Scholar(${PUBLICATION_STATS.sourceDate}) 기준 works ${PUBLICATION_STATS.scholarWorks}, cited by ${PUBLICATION_STATS.citedBy}입니다.`,
-        `Homepage stats: ${PUBLICATION_STATS.journals} journals, ${PUBLICATION_STATS.conferences} conferences, ${PUBLICATION_STATS.standards} ITU-T standards, ${PUBLICATION_STATS.patents} patents. Google Scholar (${PUBLICATION_STATS.sourceDate}): ${PUBLICATION_STATS.scholarWorks} works, cited by ${PUBLICATION_STATS.citedBy}.`
+        `Homepage stats: ${PUBLICATION_STATS.journals} journals, ${PUBLICATION_STATS.conferences} conferences, ${PUBLICATION_STATS.standards} ITU-T standards, ${PUBLICATION_STATS.patents} patents. Google Scholar (${PUBLICATION_STATS.sourceDate}): works ${PUBLICATION_STATS.scholarWorks}, cited by ${PUBLICATION_STATS.citedBy}.`
       ),
       docs: [{ type: 'publication_stats', title: 'Publication Stats', url: SITE_LINKS.publications, score: 1 }]
     };
   }
 
-  if (isPublicationIntent(message) && isCoauthorIntent(message) && isMostIntent(message)) {
+  if (isPublicationIntent(msg) && isLatestIntent(msg)) {
+    const latest = [...(PUBLICATIONS || [])].sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 3);
+    const lines = latest.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
+    return {
+      reply: tr(lang, `최근 논문은 다음과 같습니다.\n${lines}`, `Recent papers:\n${lines}`),
+      docs: latest.map((p, i) => ({
+        type: 'publication',
+        title: `${p.title} (${p.year}) - ${p.journal}`,
+        url: p.doi || SITE_LINKS.publications,
+        score: 1 - i * 0.1
+      }))
+    };
+  }
+
+  if (isPublicationIntent(msg) && isRepresentativeIntent(msg)) {
+    const rep = [...(PUBLICATIONS || [])]
+      .filter((p) => /IEEE/i.test(p.journal || ''))
+      .sort((a, b) => (b.year || 0) - (a.year || 0))
+      .slice(0, 3);
+    const lines = rep.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
+    return {
+      reply: tr(lang, `대표 실적(IEEE 중심)은 다음과 같습니다.\n${lines}`, `Representative outputs (IEEE-focused):\n${lines}`),
+      docs: rep.map((p, i) => ({
+        type: 'publication',
+        title: `${p.title} (${p.year}) - ${p.journal}`,
+        url: p.doi || SITE_LINKS.publications,
+        score: 1 - i * 0.1
+      }))
+    };
+  }
+
+  if (isPublicationIntent(msg) && isCoauthorIntent(msg) && isMostIntent(msg)) {
     const top = coauthorTop().slice(0, 3);
     if (top.length) {
       const summary = top.map(([name, cnt]) => `${name} (${cnt})`).join(', ');
       return {
-        reply: t(lang, `공동저자 상위는 ${summary} 입니다.`, `Top coauthors are ${summary}.`),
-        docs: top.map(([name, cnt], i) => ({ type: 'coauthor', title: `${name} (${cnt})`, url: SITE_LINKS.publications, score: 1 - i * 0.1 }))
+        reply: tr(lang, `공동저자 상위는 ${summary} 입니다.`, `Top coauthors are ${summary}.`),
+        docs: top.map(([name, cnt], i) => ({
+          type: 'coauthor',
+          title: `${name} (${cnt})`,
+          url: SITE_LINKS.publications,
+          score: 1 - i * 0.1
+        }))
       };
     }
   }
 
-  if (isPublicationIntent(message) && isLatestIntent(message)) {
-    const latest = [...PUBLICATIONS].sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 3);
-    const lines = latest.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
-    return {
-      reply: t(lang, `최근 논문은 다음과 같습니다.\n${lines}`, `Recent papers:\n${lines}`),
-      docs: latest.map((p, i) => ({ type: 'publication', title: p.title, journal: p.journal, year: p.year, url: p.doi || SITE_LINKS.publications, score: 1 - i * 0.1 }))
-    };
-  }
-
-  if (isPublicationIntent(message) && isRepresentativeIntent(message)) {
-    const rep = [...PUBLICATIONS].filter((p) => /IEEE/i.test(p.journal || '')).sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 3);
-    const lines = rep.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
-    return {
-      reply: t(lang, `대표 실적은 IEEE 위주로 다음과 같습니다.\n${lines}`, `Representative IEEE-focused papers:\n${lines}`),
-      docs: rep.map((p, i) => ({ type: 'publication', title: p.title, journal: p.journal, year: p.year, url: p.doi || SITE_LINKS.publications, score: 1 - i * 0.1 }))
-    };
-  }
-
-  if (isPublicationIntent(message)) {
-    const matched = findPublicationByQuery(message);
+  if (isPublicationIntent(msg)) {
+    const matched = findPublication(msg);
     if (matched) {
-      const authors = (matched.authors || []).join(', ');
       return {
-        reply: t(lang, `${matched.title}는 ${matched.year}년 ${matched.journal} 게재 논문입니다. 저자: ${authors}.${matched.doi ? ` DOI: ${matched.doi}` : ''}`, `${matched.title} was published in ${matched.journal} (${matched.year}). Authors: ${authors}.${matched.doi ? ` DOI: ${matched.doi}` : ''}`),
-        docs: [{ type: 'publication', title: matched.title, journal: matched.journal, year: matched.year, url: matched.doi || SITE_LINKS.publications, score: 1 }]
+        reply: tr(
+          lang,
+          `${matched.title}는 ${matched.year}년 ${matched.journal} 게재 논문입니다.${matched.doi ? ` DOI: ${matched.doi}` : ''}`,
+          `${matched.title} was published in ${matched.journal} (${matched.year}).${matched.doi ? ` DOI: ${matched.doi}` : ''}`
+        ),
+        docs: [{
+          type: 'publication',
+          title: `${matched.title} (${matched.year}) - ${matched.journal}`,
+          url: matched.doi || SITE_LINKS.publications,
+          score: 1
+        }]
       };
     }
   }
 
-  if (isProjectIntent(message)) {
+  if (isBeforeThatIntent(msg)) {
+    const historyText = normalize((history || []).map((h) => h?.content || '').join(' '));
+    const djuHint = /(대전대학교|조교수|assistant professor|daejeon)/i.test(historyText);
+    const sayberryHint = /(sayberry|세이베리|game developer|게임 개발)/i.test(historyText);
+
+    if (sayberryHint) {
+      return {
+        reply: tr(
+          lang,
+          `${SITE_PROFILE.formerIndustryPeriod} 이전에는 ${SITE_PROFILE.postdocPeriod} 동안 ${SITE_PROFILE.postdocRole}로 근무했습니다.`,
+          `Before ${SITE_PROFILE.formerIndustryPeriod}, he worked as ${SITE_PROFILE.postdocRole} during ${SITE_PROFILE.postdocPeriod}.`
+        ),
+        docs: timelineDocs
+      };
+    }
+
+    if (djuHint) {
+      return {
+        reply: tr(
+          lang,
+          `대전대학교 부임 직전에는 ${SITE_PROFILE.formerIndustryPeriod} 동안 ${SITE_PROFILE.formerIndustryRole}로 근무했습니다.`,
+          `Right before joining Daejeon University, he worked as ${SITE_PROFILE.formerIndustryRole} during ${SITE_PROFILE.formerIndustryPeriod}.`
+        ),
+        docs: timelineDocs
+      };
+    }
+  }
+
+  if (/(경력|career|포닥|postdoc|kaist|정보전자연구소)/i.test(msg)) {
+    const linesKo = timeline.map((item) => `- ${item.period}: ${item.role}`).join('\n');
+    const linesEn = timeline.map((item) => `- ${item.period}: ${item.role}`).join('\n');
     return {
-      reply: t(lang, `현재 1인 개발 프로젝트는 Hexagon Soup이며 링크는 ${SITE_PROFILE.currentProjectUrl}입니다.`, `Current solo project: Hexagon Soup. Link: ${SITE_PROFILE.currentProjectUrl}`),
+      reply: tr(lang, `주요 경력은 다음과 같습니다.\n${linesKo}`, `Career timeline:\n${linesEn}`),
+      docs: timelineDocs
+    };
+  }
+
+  if (isProjectIntent(msg)) {
+    return {
+      reply: tr(lang, `현재 1인 개발 프로젝트는 Hexagon Soup이며 링크는 ${SITE_PROFILE.currentProjectUrl}입니다.`, `Current solo project is Hexagon Soup. Link: ${SITE_PROFILE.currentProjectUrl}`),
       docs: [{ type: 'project', title: SITE_PROFILE.currentProject, url: SITE_PROFILE.currentProjectUrl, score: 1 }]
     };
   }
 
-  if (isProfileIntent(message)) {
+  if (isProfileIntent(msg)) {
     return {
-      reply: t(lang, `${SITE_PROFILE.nameKo} 교수는 ${SITE_PROFILE.appointmentDate}부터 ${SITE_PROFILE.affiliationKo} 조교수로 재직 중입니다.`, `${SITE_PROFILE.nameEn} has been Assistant Professor at ${SITE_PROFILE.affiliationEn} since ${SITE_PROFILE.appointmentDate}.`),
+      reply: tr(lang, `${SITE_PROFILE.nameKo} 교수는 ${SITE_PROFILE.appointmentDate}부터 ${SITE_PROFILE.affiliationKo} 조교수로 재직 중입니다.`, `${SITE_PROFILE.nameEn} has been Assistant Professor at ${SITE_PROFILE.affiliationEn} since ${SITE_PROFILE.appointmentDate}.`),
       docs: [{ type: 'profile', title: `${SITE_PROFILE.nameKo} (${SITE_PROFILE.nameEn})`, url: SITE_LINKS.aboutKo, score: 1 }]
     };
   }
@@ -566,68 +541,78 @@ function deterministic(message, lang) {
 }
 
 function buildPrompt(message, history, retrieved, lang) {
-  const recent = (history || []).slice(-6).map((h) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
+  const recent = safeHistory(history)
+    .slice(-6)
+    .map((h) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`)
+    .join('\n');
+
   const context = (retrieved || []).map((r, i) => {
-    const d = r.doc || r;
-    return `[${i + 1}] type=${d.type}\ntitle=${d.title}\nurl=${d.url || 'N/A'}\ncontent=${d.text}`;
+    const doc = r.doc || r;
+    return `[${i + 1}] type=${doc.type}\ntitle=${doc.title}\nurl=${doc.url || 'N/A'}\ntext=${doc.text}`;
   }).join('\n\n');
 
   return [
-    `You are the official assistant for ${SITE_PROFILE.nameEn}'s homepage.`,
-    'Rules:',
-    '- Use only provided facts/context.',
-    '- Do not output stale seminar sales text.',
-    `- Official contact email is ${SITE_PROFILE.email}.`,
-    '- Never mention chaos@sayberrygames.com.',
-    '- For publication questions, prioritize title/year/journal/DOI.',
-    `- Answer in ${lang === 'ko' ? 'Korean' : 'English'}.`,
+    `You are the official homepage assistant for ${SITE_PROFILE.nameEn}.`,
+    '- Use only given facts and context.',
+    '- Never invent missing history.',
+    '- Contact email is sangdon.park@dju.kr.',
+    '- Keep answer concise and factual.',
+    `- Respond in ${lang === 'ko' ? 'Korean' : 'English'}.`,
     '',
     `Question: ${message}`,
     '',
     `Recent conversation:\n${recent || '(none)'}`,
     '',
-    `Retrieved context:\n${context || '(none)'}`
+    `Context:\n${context || '(none)'}`
   ].join('\n');
 }
 
 async function generateReply(prompt, apiKey) {
   if (!apiKey) return null;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 800 }
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 700
+          }
+        })
+      }
+    );
     if (!response.ok) return null;
     const data = await response.json();
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (error) {
-    console.error('Generate reply error:', error);
+    console.error('generate reply error:', error);
     return null;
   }
 }
 
-async function logToSupabase(event, message, reply, history, action, searchResults) {
+async function logToSupabase(event, payload) {
   try {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-    if (!url || !key) return;
-    const supabase = createClient(url, key);
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const ip = event.headers['x-forwarded-for'] || event.headers['client-ip'] || 'unknown';
+
     await supabase.from('chat_logs').insert([{
-      user_message: message,
-      bot_response: reply,
-      conversation_history: Array.isArray(history) ? history.slice(-MAX_HISTORY) : [],
-      action_taken: action || null,
-      search_results: Array.isArray(searchResults) ? searchResults : null,
+      user_message: payload.message,
+      bot_response: payload.reply,
+      conversation_history: safeHistory(payload.history),
+      action_taken: payload.action || null,
+      search_results: Array.isArray(payload.searchResults) ? payload.searchResults : null,
       user_ip: ip,
       user_agent: event.headers['user-agent'] || 'unknown'
     }]);
   } catch (error) {
-    console.error('Supabase logging error:', error);
+    console.error('supabase log error:', error);
   }
 }
 
@@ -639,22 +624,35 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
     const message = String(body.message || '').trim();
-    const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY) : [];
+    const history = safeHistory(body.history);
     const step = Number(body.step || 1);
-    if (!message) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Message required' }) };
+
+    if (!message) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Message required' }) };
+    }
 
     const lang = detectLanguage(message, history);
 
     if (step === 1) {
       const decision = classifyStep1(message, lang);
       if (decision.action === 'CHAT') {
-        await logToSupabase(event, message, decision.initialMessage, history, decision.action, null);
+        await logToSupabase(event, {
+          message,
+          reply: decision.initialMessage,
+          history,
+          action: 'CHAT',
+          searchResults: null
+        });
       }
       return {
         statusCode: 200,
@@ -670,44 +668,91 @@ exports.handler = async (event) => {
     }
 
     const action = String(body.action || 'SEARCH').toUpperCase();
-    if (action === 'CHAT' || isGreetingOnlyMessage(message)) {
-      const reply = `${t(lang, 'greeting')} ${t(lang, 'chatHint')}`;
-      await logToSupabase(event, message, reply, history, 'CHAT', null);
-      return { statusCode: 200, headers, body: JSON.stringify({ step: 2, reply, searchResults: null, searchResultsDetailed: null }) };
+    if (action === 'CHAT' || isGreeting(message)) {
+      const reply = tr(
+        lang,
+        '안녕하세요. 궁금한 내용을 한 문장으로 보내주시면 바로 안내드리겠습니다.',
+        'Hello. Ask a concrete question and I will answer right away.'
+      );
+      await logToSupabase(event, { message, reply, history, action: 'CHAT', searchResults: null });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ step: 2, reply, searchResults: null, searchResultsDetailed: null })
+      };
     }
 
-    const det = deterministic(message, lang);
+    const det = deterministic(message, lang, history);
     if (det) {
-      const payload = buildSearchPayload(det.docs || [], lang);
-      await logToSupabase(event, message, det.reply, history, action, payload.searchResults);
-      return { statusCode: 200, headers, body: JSON.stringify({ step: 2, reply: det.reply, searchResults: payload.searchResults, searchResultsDetailed: payload.searchResultsDetailed }) };
+      const payload = buildSearchPayload(det.docs || []);
+      await logToSupabase(event, {
+        message,
+        reply: det.reply,
+        history,
+        action,
+        searchResults: payload.searchResults
+      });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          step: 2,
+          reply: det.reply,
+          searchResults: payload.searchResults,
+          searchResultsDetailed: payload.searchResultsDetailed
+        })
+      };
     }
 
     const apiKey = process.env.GEMINI_API_KEY || '';
     const query = String(body.query || message).trim();
     const retrieved = await retrieve(query, apiKey);
-    const payload = buildSearchPayload(retrieved, lang);
+    const payload = buildSearchPayload(retrieved);
 
     let reply = null;
     if (apiKey) {
       reply = await generateReply(buildPrompt(message, history, retrieved, lang), apiKey);
     }
 
-    if (!reply || (!isGreetingOnlyMessage(message) && isGenericGreetingReply(reply))) {
-      if (retrieved.length) {
+    if (!reply) {
+      if (retrieved.length > 0) {
         const top = retrieved[0].doc || retrieved[0];
-        reply = `${t(lang, 'resultsHint')} "${top.title}"`;
+        reply = tr(
+          lang,
+          `관련 자료를 찾았습니다. 우선 "${top.title}" 항목을 확인해 주세요.`,
+          `I found relevant information. Please check "${top.title}" first.`
+        );
       } else {
-        reply = `${t(lang, 'fallback')} ${SITE_LINKS.publications}`;
+        reply = tr(
+          lang,
+          `질문을 정확히 분류하지 못했습니다. 논문/강의/경력/연락처 중 하나로 다시 질문해 주세요. (${SITE_PROFILE.email})`,
+          `I could not classify the question precisely. Please ask again about publications/courses/career/contact. (${SITE_PROFILE.email})`
+        );
       }
     }
 
     if (isContactIntent(message) && !reply.includes(SITE_PROFILE.email)) {
-      reply = `${reply}\n\n${t(lang, 'contactLabel')}: ${SITE_PROFILE.email}`;
+      reply += `\n\n${tr(lang, '연락처', 'Contact')}: ${SITE_PROFILE.email}`;
     }
 
-    await logToSupabase(event, message, reply, history, action, payload.searchResults);
-    return { statusCode: 200, headers, body: JSON.stringify({ step: 2, reply, searchResults: payload.searchResults, searchResultsDetailed: payload.searchResultsDetailed }) };
+    await logToSupabase(event, {
+      message,
+      reply,
+      history,
+      action,
+      searchResults: payload.searchResults
+    });
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        step: 2,
+        reply,
+        searchResults: payload.searchResults,
+        searchResultsDetailed: payload.searchResultsDetailed
+      })
+    };
   } catch (error) {
     console.error('chat-ai-driven error:', error);
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server error' }) };

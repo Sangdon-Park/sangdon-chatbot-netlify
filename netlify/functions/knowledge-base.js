@@ -19,6 +19,22 @@ const SITE_PROFILE = {
   "website": "https://sangdon-park.github.io/",
   "formerIndustryRole": "Game Developer at Sayberry Games",
   "formerIndustryPeriod": "2025-05 to 2026-02-28",
+  "postdocRole": "Postdoctoral Researcher at KAIST Institute for Information Technology Convergence",
+  "postdocPeriod": "2017-08 to 2025-04",
+  "careerTimeline": [
+    {
+      "period": "2026-03-01 to present",
+      "role": "Assistant Professor at Daejeon University, Department of Computer Engineering, School of SW Convergence"
+    },
+    {
+      "period": "2025-05 to 2026-02-28",
+      "role": "Game Developer at Sayberry Games"
+    },
+    {
+      "period": "2017-08 to 2025-04",
+      "role": "Postdoctoral Researcher at KAIST Institute for Information Technology Convergence"
+    }
+  ],
   "currentProject": "Hexagon Soup (solo development)",
   "currentProjectUrl": "https://store.steampowered.com/app/4256880/Hexagon_Soup/"
 };
