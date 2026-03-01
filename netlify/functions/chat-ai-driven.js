@@ -17,6 +17,10 @@ const MAX_RESULTS = 5;
 const MAX_RETRIEVED = 6;
 const COURSE_FACT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const COURSE_FACT_CACHE = new Map();
+const HOMEPAGE_SNAPSHOT_TTL_MS = 30 * 60 * 1000;
+const HOMEPAGE_SNAPSHOT_CACHE = { updatedAt: 0, docs: [] };
+const MAX_CHUNK_LEN = 900;
+const CHUNK_OVERLAP = 150;
 
 function tr(lang, ko, en) {
   return lang === 'ko' ? ko : en;
@@ -79,6 +83,10 @@ function isExamIntent(text = '') {
 
 function isGradingIntent(text = '') {
   return /(점수|배점|비율|평가|채점|grading|score|scores|weight|weights|rubric|evaluation)/i.test(text);
+}
+
+function isTextbookIntent(text = '') {
+  return /(교재|책|textbook|book|reference book)/i.test(text);
 }
 
 function isFollowupCourseIntent(text = '') {
@@ -156,6 +164,110 @@ function stripHtml(raw = '') {
   )
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function extractPageTitle(html = '') {
+  return pickFirstMatch(String(html), [/<title[^>]*>([\s\S]*?)<\/title>/i]) || 'Untitled';
+}
+
+function extractMainText(html = '') {
+  const input = String(html || '');
+  const withoutScripts = input
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  const mainMatch = withoutScripts.match(/<main[\s\S]*?<\/main>/i);
+  const root = mainMatch ? mainMatch[0] : withoutScripts;
+  return stripHtml(root);
+}
+
+function chunkText(text = '', size = MAX_CHUNK_LEN, overlap = CHUNK_OVERLAP) {
+  const clean = String(text || '').trim();
+  if (!clean) return [];
+  if (clean.length <= size) return [clean];
+
+  const chunks = [];
+  let start = 0;
+  while (start < clean.length) {
+    let end = Math.min(start + size, clean.length);
+    if (end < clean.length) {
+      const lastSpace = clean.lastIndexOf(' ', end);
+      if (lastSpace > start + Math.floor(size * 0.6)) {
+        end = lastSpace;
+      }
+    }
+
+    const part = clean.slice(start, end).trim();
+    if (part) chunks.push(part);
+    if (end >= clean.length) break;
+    start = Math.max(0, end - overlap);
+  }
+  return chunks;
+}
+
+function buildHomepageSourceUrls() {
+  const urls = new Set([
+    SITE_LINKS.homeKo,
+    SITE_LINKS.homeEn,
+    SITE_LINKS.aboutKo,
+    SITE_LINKS.aboutEn,
+    SITE_LINKS.publications,
+    SITE_LINKS.coursesHubKo,
+    SITE_LINKS.coursesHubEn,
+    SITE_LINKS.collaborationKo,
+    SITE_LINKS.collaborationEn
+  ]);
+
+  for (const c of COURSES_2026_SPRING || []) {
+    if (c.pageKo) urls.add(c.pageKo);
+    if (c.pageEn) urls.add(c.pageEn);
+  }
+  for (const post of NEWS_POSTS || []) {
+    if (post.url) urls.add(post.url);
+  }
+
+  return Array.from(urls).filter(Boolean);
+}
+
+async function fetchHomepageSnapshotDocs() {
+  if (HOMEPAGE_SNAPSHOT_CACHE.docs.length > 0 && Date.now() - HOMEPAGE_SNAPSHOT_CACHE.updatedAt < HOMEPAGE_SNAPSHOT_TTL_MS) {
+    return HOMEPAGE_SNAPSHOT_CACHE.docs;
+  }
+
+  const urls = buildHomepageSourceUrls();
+  const docs = [];
+
+  const pages = await Promise.all(urls.map(async (url) => {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': 'SangdonChatbot/1.0' } });
+      if (!res.ok) return null;
+      const html = await res.text();
+      return { url, html };
+    } catch (error) {
+      console.error(`homepage fetch error (${url}):`, error?.message || error);
+      return null;
+    }
+  }));
+
+  for (const page of pages) {
+    if (!page?.html) continue;
+    const title = extractPageTitle(page.html);
+    const text = extractMainText(page.html);
+    const chunks = chunkText(text);
+    chunks.slice(0, 14).forEach((chunk, idx) => {
+      docs.push({
+        id: `site-${normalize(page.url)}-${idx}`,
+        type: 'site',
+        title: `${title}#${idx + 1}`,
+        text: chunk,
+        url: page.url,
+        year: 2026
+      });
+    });
+  }
+
+  HOMEPAGE_SNAPSHOT_CACHE.updatedAt = Date.now();
+  HOMEPAGE_SNAPSHOT_CACHE.docs = docs;
+  return docs;
 }
 
 function extractGradingSummaryFromHtml(html = '') {
@@ -515,12 +627,13 @@ async function buildRuntimeDocs(query, history, lang) {
   }
 
   const uniqueTargets = Array.from(new Map(targets.map((c) => [c.code, c])).values());
-  if (!uniqueTargets.length) return [];
-
   const factsList = await Promise.all(uniqueTargets.map((course) => fetchCourseFacts(course, lang)));
-  return factsList
+  const courseFactDocs = factsList
     .filter(Boolean)
     .map((facts) => buildCourseFactDoc(facts));
+
+  const homepageDocs = await fetchHomepageSnapshotDocs();
+  return [...courseFactDocs, ...homepageDocs];
 }
 
 async function retrieve(query, apiKey, runtimeDocs = []) {
@@ -669,6 +782,24 @@ function parseGradingFromDocText(text = '') {
   ]);
 }
 
+function parseTextbookFromDocText(text = '') {
+  const source = String(text || '');
+  const direct = pickFirstMatch(source, [
+    /교재[:\s]*([\s\S]*?)(?:이번 학기 범위|실습 코드|동기화 기준|교재 정보|$)/i,
+    /Textbook[:\s]*([\s\S]*?)(?:Semester scope|Lab code|Sync baseline|Book info|$)/i,
+    /Book[:\s]*([^.\n]+)/i
+  ]);
+  if (direct) return direct;
+
+  if (/혼자\s*공부하는\s*머신러닝\+딥러닝/i.test(source)) {
+    return '박해선, 「혼자 공부하는 머신러닝+딥러닝」 개정판, 한빛미디어';
+  }
+  if (/self-study\s*machine learning\s*\+\s*deep learning/i.test(source)) {
+    return 'Park Haesun, "Self-Study Machine Learning + Deep Learning" (Revised), Hanbit Media';
+  }
+  return null;
+}
+
 function summarizeTopDoc(top, lang) {
   const doc = top?.doc || top;
   if (!doc) {
@@ -749,6 +880,32 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
       `현재 제공된 자료에서 바로 확인되지 않습니다. 과목명/논문제목 등 키워드를 함께 보내주세요. (${SITE_PROFILE.email})`,
       `I cannot confirm this from the current materials. Please include a specific keyword (course or paper title). (${SITE_PROFILE.email})`
     );
+  }
+
+  if (isTextbookIntent(message)) {
+    const explicitCourse = findCourseInText(message);
+    const historyCourse = findCourseFromHistory(history);
+    const targetCourse = explicitCourse || historyCourse;
+
+    const docs = retrieved.map((r) => r.doc || r);
+    const relevant = targetCourse
+      ? docs.filter((d) => {
+        const hay = normalize(`${d.title} ${d.text}`);
+        return hay.includes(normalize(targetCourse.titleKo)) || hay.includes(normalize(targetCourse.titleEn));
+      })
+      : docs;
+
+    const textbook = (relevant.length ? relevant : docs)
+      .map((d) => parseTextbookFromDocText(d.text))
+      .find(Boolean);
+
+    if (textbook) {
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}교재는 ${textbook}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}textbook is ${textbook}.`
+      );
+    }
   }
 
   if (isExamIntent(message)) {
@@ -946,7 +1103,7 @@ exports.handler = async (event) => {
     const retrieved = await retrieve(query, apiKey, runtimeDocs);
     const payload = buildSearchPayload(retrieved);
 
-    const forceFallback = isBeforeThatIntent(message);
+    const forceFallback = isBeforeThatIntent(message) || isExamIntent(message) || isGradingIntent(message) || isTextbookIntent(message);
     let reply = null;
     if (apiKey && !forceFallback) {
       const prompt = buildPrompt(message, history, retrieved, lang);
