@@ -3,6 +3,33 @@ const { createClient } = require('@supabase/supabase-js');
 const { getCachedEmbedding, setCachedEmbedding } = require('./embeddings-cache');
 const { PROFILE_DATABASE } = require('../../profile_database');
 
+function isGreetingOnlyMessage(text = '') {
+  const msg = String(text).trim().toLowerCase();
+  if (!msg) return false;
+  return (
+    /^안녕+$/.test(msg) ||
+    /^안녕하세요+$/.test(msg) ||
+    /^ㅎ+$/.test(msg) ||
+    /^하이$/.test(msg) ||
+    /^hello$/.test(msg) ||
+    /^hi$/.test(msg) ||
+    /^hey$/.test(msg) ||
+    /^감사(합니다|해요)?$/.test(msg) ||
+    /^고마워(요)?$/.test(msg) ||
+    /^thanks?$/.test(msg)
+  );
+}
+
+function isGenericGreetingReply(text = '') {
+  const msg = String(text).replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!msg) return false;
+  return (
+    msg.includes('무엇을 도와드릴까요') ||
+    msg.includes('편하게 물어보세요') ||
+    msg.includes('how can i help')
+  );
+}
+
 // Enhanced database with proper search capability
 const POSTS_DATABASE = [
   { title: "AI LLM에 미쳐있던 8개월", type: "article", keywords: ["AI", "LLM", "ChatGPT", "Claude", "Gemini"], year: 2024 },
@@ -853,6 +880,24 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         let action = actionMatch ? actionMatch[1].trim() : 'CHAT';
         let query = queryMatch ? queryMatch[1].trim() : '';
         let initialMessage = initialMatch ? initialMatch[1].trim() : null;
+
+        // Harden fallback: if Gemini step-1 failed or malformed, never default to greeting for non-greeting user query.
+        const malformedStep1 = !actionResponse.ok || !actionMatch || !actionText;
+        if (malformedStep1) {
+          const greetingOnly = isGreetingOnlyMessage(message);
+          action = greetingOnly ? 'CHAT' : 'SEARCH';
+          if (!greetingOnly && !query) query = message;
+          initialMessage = greetingOnly
+            ? (initialMessage || '안녕하세요, 박상돈입니다. 무엇을 도와드릴까요?')
+            : (initialMessage || '관련 자료를 확인해보겠습니다.');
+          console.warn('Step 1 malformed/failure fallback applied:', {
+            status: actionResponse.status,
+            hasActionMatch: !!actionMatch,
+            actionText: actionText ? actionText.substring(0, 80) : '(empty)',
+            resolvedAction: action,
+            query
+          });
+        }
         
         // If CHAT but no initialMessage, provide default
         if (action === 'CHAT' && !initialMessage) {
@@ -1496,6 +1541,15 @@ if (contains("얼마")) → include("50만원")
         if (!reply) {
           console.error('No reply generated, using fallback');
           reply = deterministicReply || (Array.isArray(searchResults) ? (searchResults[0] || '') : '') || '죄송합니다. 답변을 생성할 수 없습니다.';
+        }
+
+        // Avoid repeating generic greeting on non-greeting queries.
+        if (!isGreetingOnlyMessage(message) && isGenericGreetingReply(reply)) {
+          if (Array.isArray(searchResults) && searchResults.length > 0) {
+            reply = `관련 자료를 찾았습니다. 우선 "${searchResults[0]}"를 확인해보세요. 이어서 "이 내용 요약해줘"처럼 질문하면 더 자세히 안내할 수 있습니다.`;
+          } else {
+            reply = '질문을 확인했습니다. 현재 응답 생성이 불안정합니다. 질문을 한 문장으로 조금 더 구체적으로 다시 보내주세요.';
+          }
         }
         
         // POST-PROCESSING: Force correct patterns
