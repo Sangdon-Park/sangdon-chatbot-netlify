@@ -64,7 +64,7 @@ function isPublicationIntent(text = '') {
 }
 
 function isCourseIntent(text = '') {
-  return /(수업|강의|과목|가르치|이번\s*학기|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
+  return /(수업|강의|과목|가르치|이번\s*학기|데이터베이스|인공지능|캡스톤|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
 }
 
 function isGradingIntent(text = '') {
