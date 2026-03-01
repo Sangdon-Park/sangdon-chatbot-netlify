@@ -102,6 +102,10 @@ function isPublicationIntent(text = '') {
   return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
 }
 
+function isResearchIntent(text = '') {
+  return /(주\s*연구|연구\s*분야|연구\s*주제|연구\s*키워드|research\s*area|research\s*focus|research\s*topic|what do you research|main research)/i.test(text);
+}
+
 function isCountIntent(text = '') {
   return /(총|전체|개수|몇\s*편|몇편|how many|count|number of|total)/i.test(text);
 }
@@ -607,6 +611,15 @@ function buildBaseDocs() {
     year: 2026
   });
 
+  docs.push({
+    id: 'research',
+    type: 'research',
+    title: 'Research Areas',
+    text: buildResearchSummary('en'),
+    url: SITE_LINKS.aboutKo,
+    year: 2026
+  });
+
   timeline.forEach((item, idx) => {
     docs.push({
       id: `career-${idx}`,
@@ -713,6 +726,14 @@ function computePublicationMetrics() {
     firstAuthorCount,
     publicationListCount: listCount
   };
+}
+
+function buildResearchSummary(lang = 'ko') {
+  return tr(
+    lang,
+    '주 연구분야는 AI x Games 관점의 시스템 연구입니다. 핵심 축은 1) 엣지컴퓨팅/네트워크 자원 최적화와 동적 가격결정, 2) AI·LLM 시스템 설계(RAG, tool-use, agent/evaluation), 3) 게임 개발 및 인터랙티브 AI 응용입니다.',
+    'Main research area is AI x Games systems. Core tracks are: 1) edge/network resource optimization and dynamic pricing, 2) AI/LLM system design (RAG, tool-use, agent/evaluation), and 3) game development with interactive AI applications.'
+  );
 }
 
 function dedupeDocs(docs = []) {
@@ -1081,6 +1102,14 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
     );
   }
 
+  if (isResearchIntent(message)) {
+    return tr(
+      lang,
+      `${buildResearchSummary('ko')} 자세한 내용: ${SITE_LINKS.aboutKo}`,
+      `${buildResearchSummary('en')} Details: ${SITE_LINKS.aboutEn}`
+    );
+  }
+
   if (isPublicationIntent(message) && (isPublicationCountIntent(message) || isFirstAuthorIntent(message))) {
     const metrics = computePublicationMetrics();
 
@@ -1399,6 +1428,7 @@ exports.handler = async (event) => {
       isGradingIntent(message) ||
       isTextbookIntent(message) ||
       isLinkIntent(message) ||
+      isResearchIntent(message) ||
       isPublicationCountIntent(message) ||
       isFirstAuthorIntent(message);
     let reply = null;
