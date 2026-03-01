@@ -1598,6 +1598,58 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
   return summarizeTopDoc(retrieved[0], lang);
 }
 
+function isNoDataStyleReply(text = '') {
+  const source = String(text || '').trim();
+  if (!source) return true;
+
+  return (
+    /\uC81C\uACF5\uB41C \uC790\uB8CC\uC5D0\uB294|\uC218\uC9D1\uB41C \uC790\uB8CC|\uBA85\uC2DC\uC801\uC73C\uB85C \uD655\uC778\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4|\uD655\uC778\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4|\uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4/i.test(source) ||
+    /not explicitly|not currently confirmed|cannot confirm|could not confirm|not found in provided/i.test(source)
+  );
+}
+
+function extractSourceLinks(searchResultsDetailed = []) {
+  if (!Array.isArray(searchResultsDetailed) || searchResultsDetailed.length === 0) return [];
+
+  const links = [];
+  const seen = new Set();
+  for (const row of searchResultsDetailed) {
+    const url = row?.item?.url || '';
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    links.push(url);
+    if (links.length >= 3) break;
+  }
+  return links;
+}
+
+function standardizeNoDataReply(message, reply, searchResultsDetailed, lang) {
+  if (!isNoDataStyleReply(reply)) return reply;
+
+  const query = String(message || '').trim() || tr(lang, '\uC9C8\uBB38 \uC6D0\uBB38', 'original query');
+  const links = extractSourceLinks(searchResultsDetailed);
+  const defaultLinks = lang === 'ko'
+    ? [SITE_LINKS.aboutKo, SITE_LINKS.coursesHubKo]
+    : [SITE_LINKS.aboutEn, SITE_LINKS.coursesHubEn];
+  const joinedLinks = (links.length ? links : defaultLinks).join(' | ');
+
+  return tr(
+    lang,
+    [
+      '\uD604\uC7AC \uC218\uC9D1\uB41C \uD398\uC774\uC9C0 \uAE30\uC900\uC73C\uB85C \uC774 \uC9C8\uBB38\uC5D0 \uB300\uD55C \uD655\uC815 \uC815\uBCF4\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+      `\uD655\uC778\uD55C \uBC94\uC704: ${query}`,
+      `\uAD00\uB828 \uD398\uC774\uC9C0: ${joinedLinks}`,
+      '\uC815\uD655\uB3C4\uB97C \uB192\uC774\uB824\uBA74 \uACFC\uBAA9\uBA85/\uAE30\uAC04/\uD0A4\uC6CC\uB4DC\uB97C \uD55C \uBB38\uC7A5\uC73C\uB85C \uAC19\uC774 \uBCF4\uB0B4\uC8FC\uC138\uC694.'
+    ].join('\n'),
+    [
+      'I could not confirm this from the currently indexed pages.',
+      `Checked scope: ${query}`,
+      `Related pages: ${joinedLinks}`,
+      'For a precise answer, include course name, time range, and one concrete keyword in one sentence.'
+    ].join('\n')
+  );
+}
+
 function classifyStep1(message, lang) {
   if (isGreeting(message)) {
     return {
@@ -1738,6 +1790,8 @@ exports.handler = async (event) => {
     if (isContactIntent(message) && !reply.includes(SITE_PROFILE.email)) {
       reply += `\n\n${tr(lang, '연락처', 'Contact')}: ${SITE_PROFILE.email}`;
     }
+
+    reply = standardizeNoDataReply(message, reply, payload.searchResultsDetailed, lang);
 
     await logToSupabase(event, {
       message,
