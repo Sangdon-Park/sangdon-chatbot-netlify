@@ -15,8 +15,8 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 const MAX_HISTORY = 10;
 const MAX_RESULTS = 5;
 const MAX_RETRIEVED = 6;
-const COURSE_GRADING_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const COURSE_GRADING_CACHE = new Map();
+const COURSE_FACT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const COURSE_FACT_CACHE = new Map();
 
 function tr(lang, ko, en) {
   return lang === 'ko' ? ko : en;
@@ -50,6 +50,10 @@ function tokenize(text = '') {
     .filter((v) => v.length > 1);
 }
 
+function safeHistory(history = []) {
+  return Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
+}
+
 function isGreeting(message = '') {
   const compact = normalize(message).replace(/\s+/g, '');
   if (!compact) return false;
@@ -61,55 +65,39 @@ function isGreeting(message = '') {
   return false;
 }
 
-function isPublicationIntent(text = '') {
-  return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
+function isContactIntent(text = '') {
+  return /(연락|이메일|문의|메일|email|contact|reach)/i.test(text);
 }
 
 function isCourseIntent(text = '') {
   return /(수업|강의|과목|가르치|이번\s*학기|데이터베이스|인공지능|캡스톤|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
 }
 
+function isExamIntent(text = '') {
+  return /(중간|기말|시험|범위|출제|midterm|final|exam|coverage|scope)/i.test(text);
+}
+
 function isGradingIntent(text = '') {
   return /(점수|배점|비율|평가|채점|grading|score|scores|weight|weights|rubric|evaluation)/i.test(text);
 }
 
-function isContactIntent(text = '') {
-  return /(연락|이메일|문의|메일|email|contact|reach)/i.test(text);
+function isFollowupCourseIntent(text = '') {
+  return /(그럼|그건|그거|이번엔|그 과목|해당 과목|그 수업|범위|배점|중간|기말|시험|과제|교재|공지|syllabus|assignment|quiz|midterm|final)/i.test(text);
+}
+
+function isPublicationIntent(text = '') {
+  return /(논문|저널|학술|publication|paper|journal|doi|ieee|scholar)/i.test(text);
 }
 
 function isProfileIntent(text = '') {
   return /(누구|소개|약력|학력|경력|소속|직위|연구|무슨\s*일|who are you|profile|bio|about|cv)/i.test(text);
 }
 
-function isProjectIntent(text = '') {
-  return /(hexagon|steam|project|프로젝트|게임|game)/i.test(text);
-}
-
-function isCountIntent(text = '') {
-  return /(몇|개수|총|편|건|횟수|how many|count|number of)/i.test(text);
-}
-
-function isLatestIntent(text = '') {
-  return /(최근|최신|근래|latest|recent|newest)/i.test(text);
-}
-
-function isRepresentativeIntent(text = '') {
-  return /(대표|핵심|하이라이트|representative|highlight|selected|key)/i.test(text);
-}
-
-function isCoauthorIntent(text = '') {
-  return /(공동저자|공동연구|같이|coauthor|collaborator|collaboration)/i.test(text);
-}
-
-function isMostIntent(text = '') {
-  return /(가장|최다|많이|most|top)/i.test(text);
-}
-
 function isBeforeThatIntent(text = '') {
   return /(그전|그 전|이전|전에는|before that|before|prior)/i.test(text);
 }
 
-function findCourseInMessage(text = '') {
+function findCourseInText(text = '') {
   const msg = String(text || '');
 
   if (/(데이터베이스|db\s*시스템|db시스템|database|db systems?)/i.test(msg)) {
@@ -125,8 +113,29 @@ function findCourseInMessage(text = '') {
   return null;
 }
 
-function safeHistory(history = []) {
-  return Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
+function findCourseFromHistory(history = []) {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const c = findCourseInText(history[i]?.content || '');
+    if (c) return c;
+  }
+  return null;
+}
+
+function expandQueryWithHistory(query = '', history = []) {
+  const q = String(query || '').trim();
+  if (!q) return q;
+
+  const queryCourse = findCourseInText(q);
+  if (queryCourse) return q;
+
+  if (isCourseIntent(q) || isExamIntent(q) || isGradingIntent(q) || isFollowupCourseIntent(q)) {
+    const historyCourse = findCourseFromHistory(history);
+    if (historyCourse) {
+      return `${q} ${historyCourse.titleKo} ${historyCourse.titleEn}`;
+    }
+  }
+
+  return q;
 }
 
 function decodeEntities(text = '') {
@@ -154,7 +163,7 @@ function extractGradingSummaryFromHtml(html = '') {
   const tables = String(html).match(tablePattern) || [];
 
   for (const table of tables) {
-    if (!/(평가 항목|배점|비율|grading|evaluation|weight|score)/i.test(table)) {
+    if (!/(평가 항목|배점|비율|grading|evaluation|weight|score|component)/i.test(table)) {
       continue;
     }
 
@@ -174,11 +183,11 @@ function extractGradingSummaryFromHtml(html = '') {
       if (!item || !weight) continue;
 
       const isHeaderRow =
-        /^(평가 항목|항목|item|category)$/i.test(item) ||
-        /^(배점|비율|weight|score)$/i.test(weight) ||
-        (/(평가 항목|배점|비율|기준|상태|status)/i.test(item) && /(배점|비율|점수|weight|score|status)/i.test(weight));
+        /^(평가 항목|항목|item|category|component)$/i.test(item) ||
+        /^(배점|비율|weight|score)$/i.test(weight);
 
       if (isHeaderRow) continue;
+
       if (!/(중간|기말|퀴즈|과제|출석|프로젝트|시험|midterm|final|quiz|assignment|attendance|project|exam|deliverable|presentation|team)/i.test(item)) {
         continue;
       }
@@ -197,12 +206,47 @@ function extractGradingSummaryFromHtml(html = '') {
   return null;
 }
 
-async function fetchCourseGradingSummary(course, lang = 'ko') {
+function pickFirstMatch(text = '', patterns = []) {
+  for (const pattern of patterns) {
+    const m = String(text).match(pattern);
+    if (m && m[1]) return m[1].replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+function extractCourseFactsFromText(text = '') {
+  const plain = String(text || '');
+
+  const midtermCoverage = pickFirstMatch(plain, [
+    /중간고사\s*\(([^)]+)\)/i,
+    /중간고사[^.\n]{0,120}?범위[:\s]*([^.\n]+)/i,
+    /Midterm[^.\n]{0,120}?\(([^)]+)\)/i,
+    /Midterm[^.\n]{0,120}?Coverage[:\s]*([^.\n]+)/i
+  ]);
+
+  const finalCoverage = pickFirstMatch(plain, [
+    /기말고사\s*\(([^)]+)\)/i,
+    /기말고사[^.\n]{0,120}?범위[:\s]*([^.\n]+)/i,
+    /Final(?:\s+Exam)?[^.\n]{0,120}?\(([^)]+)\)/i,
+    /Final[^.\n]{0,120}?Coverage[:\s]*([^.\n]+)/i
+  ]);
+
+  return {
+    midtermCoverage,
+    finalCoverage
+  };
+}
+
+function hasAnyCourseFacts(facts = {}) {
+  return Boolean(facts?.gradingSummary || facts?.midtermCoverage || facts?.finalCoverage);
+}
+
+async function fetchCourseFacts(course, lang = 'ko') {
   if (!course) return null;
 
   const cacheKey = `${course.code}:${lang}`;
-  const cached = COURSE_GRADING_CACHE.get(cacheKey);
-  if (cached && Date.now() - cached.updatedAt < COURSE_GRADING_CACHE_TTL_MS) {
+  const cached = COURSE_FACT_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.updatedAt < COURSE_FACT_CACHE_TTL_MS) {
     return cached;
   }
 
@@ -210,9 +254,7 @@ async function fetchCourseGradingSummary(course, lang = 'ko') {
     ? [course.pageKo, course.pageEn]
     : [course.pageEn || course.pageKo, course.pageKo];
 
-  let summary = null;
-  let sourceUrl = null;
-
+  let resolved = null;
   for (const url of urls) {
     if (!url) continue;
     try {
@@ -224,50 +266,62 @@ async function fetchCourseGradingSummary(course, lang = 'ko') {
       if (!response.ok) continue;
 
       const html = await response.text();
-      const parsed = extractGradingSummaryFromHtml(html);
-      if (parsed) {
-        summary = parsed;
-        sourceUrl = url;
+      const plain = stripHtml(html);
+      const gradingSummary = extractGradingSummaryFromHtml(html);
+      const coverage = extractCourseFactsFromText(plain);
+
+      const facts = {
+        course,
+        sourceUrl: url,
+        gradingSummary,
+        midtermCoverage: coverage.midtermCoverage,
+        finalCoverage: coverage.finalCoverage,
+        updatedAt: Date.now()
+      };
+
+      if (hasAnyCourseFacts(facts)) {
+        resolved = facts;
         break;
       }
     } catch (error) {
-      console.error(`course grading fetch error (${url}):`, error?.message || error);
+      console.error(`course facts fetch error (${url}):`, error?.message || error);
     }
   }
 
-  if (!summary) {
-    summary = lang === 'ko'
-      ? (course.gradingSummaryKo || course.gradingSummaryEn || '')
-      : (course.gradingSummaryEn || course.gradingSummaryKo || '');
-    sourceUrl = lang === 'ko'
-      ? (course.pageKo || course.pageEn)
-      : (course.pageEn || course.pageKo);
-  }
-
-  const value = {
-    summary,
-    sourceUrl,
-    updatedAt: Date.now()
-  };
-  COURSE_GRADING_CACHE.set(cacheKey, value);
-  return value;
-}
-
-function classifyStep1(message, lang) {
-  if (isGreeting(message)) {
-    return {
-      action: 'CHAT',
-      query: '',
-      initialMessage: tr(lang, '안녕하세요. 무엇을 도와드릴까요?', 'Hello. How can I help you?'),
-      needsSecondStep: false
+  if (!resolved) {
+    resolved = {
+      course,
+      sourceUrl: lang === 'ko' ? (course.pageKo || course.pageEn) : (course.pageEn || course.pageKo),
+      gradingSummary: lang === 'ko'
+        ? (course.gradingSummaryKo || course.gradingSummaryEn || null)
+        : (course.gradingSummaryEn || course.gradingSummaryKo || null),
+      midtermCoverage: null,
+      finalCoverage: null,
+      updatedAt: Date.now()
     };
   }
 
+  COURSE_FACT_CACHE.set(cacheKey, resolved);
+  return resolved;
+}
+
+function buildCourseFactDoc(facts) {
+  const course = facts.course;
+  const textParts = [
+    `Course: ${course.titleKo} (${course.titleEn}).`
+  ];
+  if (facts.gradingSummary) textParts.push(`Grading: ${facts.gradingSummary}.`);
+  if (facts.midtermCoverage) textParts.push(`Midterm coverage: ${facts.midtermCoverage}.`);
+  if (facts.finalCoverage) textParts.push(`Final coverage: ${facts.finalCoverage}.`);
+  textParts.push(`Page: ${facts.sourceUrl}.`);
+
   return {
-    action: 'SEARCH',
-    query: String(message || '').trim(),
-    initialMessage: tr(lang, '질문 확인했습니다. 관련 정보를 찾아보겠습니다.', 'Got it. I will look up relevant information.'),
-    needsSecondStep: true
+    id: `course-facts-${course.code}`,
+    type: 'course_fact',
+    title: `${course.titleKo} (${course.titleEn}) - Facts`,
+    text: textParts.join(' '),
+    url: facts.sourceUrl,
+    year: 2026
   };
 }
 
@@ -291,7 +345,7 @@ function careerTimeline() {
   ];
 }
 
-function buildDocs() {
+function buildBaseDocs() {
   const docs = [];
   const timeline = careerTimeline();
 
@@ -329,7 +383,7 @@ function buildDocs() {
       id: `course-${c.code}`,
       type: 'course',
       title: `${c.titleKo} (${c.titleEn})`,
-      text: `2026 Spring course: ${c.titleKo} (${c.titleEn}). Grading: ${c.gradingSummaryKo || c.gradingSummaryEn || 'N/A'}. Page: ${c.pageKo}`,
+      text: `2026 Spring course: ${c.titleKo} (${c.titleEn}). Page: ${c.pageKo}.`,
       url: c.pageKo,
       year: 2026
     });
@@ -362,7 +416,7 @@ function buildDocs() {
     id: 'project',
     type: 'project',
     title: SITE_PROFILE.currentProject,
-    text: `${SITE_PROFILE.currentProject}. Link: ${SITE_PROFILE.currentProjectUrl}`,
+    text: `${SITE_PROFILE.currentProject}. Link: ${SITE_PROFILE.currentProjectUrl}.`,
     url: SITE_PROFILE.currentProjectUrl,
     year: 2026
   });
@@ -371,7 +425,7 @@ function buildDocs() {
     id: 'contact',
     type: 'contact',
     title: 'Contact & Collaboration',
-    text: `Email: ${SITE_PROFILE.email}. Collaboration page: ${SITE_LINKS.collaborationKo}`,
+    text: `Email: ${SITE_PROFILE.email}. Collaboration page: ${SITE_LINKS.collaborationKo}.`,
     url: SITE_LINKS.collaborationKo,
     year: 2026
   });
@@ -379,7 +433,16 @@ function buildDocs() {
   return docs;
 }
 
-const DOCS = buildDocs();
+const BASE_DOCS = buildBaseDocs();
+
+function dedupeDocs(docs = []) {
+  const map = new Map();
+  for (const doc of docs) {
+    if (!doc || !doc.id) continue;
+    map.set(doc.id, doc);
+  }
+  return Array.from(map.values());
+}
 
 function lexicalScore(query, doc) {
   const qTokens = tokenize(query);
@@ -436,16 +499,41 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-async function retrieve(query, apiKey) {
-  const ranked = DOCS
+async function buildRuntimeDocs(query, history, lang) {
+  const q = String(query || '');
+  const targets = [];
+  const explicit = findCourseInText(q);
+  if (explicit) targets.push(explicit);
+
+  const historyCourse = findCourseFromHistory(history);
+  if (!explicit && historyCourse && isFollowupCourseIntent(q)) {
+    targets.push(historyCourse);
+  }
+
+  if (!targets.length && (isExamIntent(q) || isGradingIntent(q))) {
+    for (const c of COURSES_2026_SPRING || []) targets.push(c);
+  }
+
+  const uniqueTargets = Array.from(new Map(targets.map((c) => [c.code, c])).values());
+  if (!uniqueTargets.length) return [];
+
+  const factsList = await Promise.all(uniqueTargets.map((course) => fetchCourseFacts(course, lang)));
+  return factsList
+    .filter(Boolean)
+    .map((facts) => buildCourseFactDoc(facts));
+}
+
+async function retrieve(query, apiKey, runtimeDocs = []) {
+  const docs = dedupeDocs([...BASE_DOCS, ...(runtimeDocs || [])]);
+  const ranked = docs
     .map((doc) => ({ doc, lexical: lexicalScore(query, doc) }))
     .sort((a, b) => b.lexical - a.lexical || (b.doc.year || 0) - (a.doc.year || 0));
 
-  let candidates = ranked.filter((r) => r.lexical > 0).slice(0, 18);
+  let candidates = ranked.filter((r) => r.lexical > 0).slice(0, 22);
   if (!candidates.length) {
     candidates = isPublicationIntent(query)
-      ? ranked.filter((r) => r.doc.type === 'publication').slice(0, 18)
-      : ranked.slice(0, 18);
+      ? ranked.filter((r) => r.doc.type === 'publication').slice(0, 22)
+      : ranked.slice(0, 22);
   }
 
   const lexicalTop = candidates.slice(0, MAX_RETRIEVED).map((r, idx) => ({
@@ -454,6 +542,7 @@ async function retrieve(query, apiKey) {
   }));
 
   if (!apiKey) return lexicalTop;
+
   const qEmb = await getEmbedding(query, apiKey, 'RETRIEVAL_QUERY');
   if (!qEmb) return lexicalTop;
 
@@ -493,225 +582,6 @@ function buildSearchPayload(entries = []) {
   };
 }
 
-function findPublication(query = '') {
-  const qTokens = tokenize(query);
-  if (!qTokens.length) return null;
-  let best = null;
-  for (const p of PUBLICATIONS || []) {
-    const hay = normalizeForMatch(`${p.title} ${p.journal} ${p.year}`);
-    let score = 0;
-    for (const tk of qTokens) if (hay.includes(tk)) score += 1;
-    if (normalizeForMatch(p.title).includes(normalizeForMatch(query))) score += 6;
-    if (!best || score > best.score) best = { p, score };
-  }
-  return best && best.score >= 3 ? best.p : null;
-}
-
-function coauthorTop() {
-  const self = new Set([normalize(SITE_PROFILE.nameEn), normalize(SITE_PROFILE.nameKo), normalize('sangdon park')]);
-  const map = new Map();
-  for (const p of PUBLICATIONS || []) {
-    for (const author of p.authors || []) {
-      const n = normalize(author);
-      if (!n || self.has(n)) continue;
-      map.set(author, (map.get(author) || 0) + 1);
-    }
-  }
-  return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-}
-
-async function deterministic(message, lang, history = []) {
-  const msg = String(message || '');
-  const timeline = careerTimeline();
-  const timelineDocs = timeline.map((item, idx) => ({
-    type: 'career',
-    title: `${item.period}: ${item.role}`,
-    url: SITE_LINKS.aboutKo,
-    score: 1 - idx * 0.1
-  }));
-
-  if (isContactIntent(msg)) {
-    return {
-      reply: tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`),
-      docs: [{ type: 'contact', title: 'Contact & Collaboration', url: SITE_LINKS.collaborationKo, score: 1 }]
-    };
-  }
-
-  if (isGradingIntent(msg)) {
-    const historyText = (history || []).map((h) => h?.content || '').join(' ');
-    const targetCourse = findCourseInMessage(msg) || findCourseInMessage(historyText);
-
-    if (targetCourse) {
-      const grading = await fetchCourseGradingSummary(targetCourse, lang);
-      const koSummary = grading?.summary || targetCourse.gradingSummaryKo || '해당 과목의 배점 정보는 과목 페이지를 확인해 주세요.';
-      const enSummary = grading?.summary || targetCourse.gradingSummaryEn || 'Please check the course page for grading details.';
-      const pageUrl = grading?.sourceUrl || targetCourse.pageKo || targetCourse.pageEn;
-
-      return {
-        reply: tr(
-          lang,
-          `${targetCourse.titleKo} 평가 배점은 ${koSummary} 입니다. 과목 페이지: ${pageUrl}`,
-          `Grading for ${targetCourse.titleEn}: ${enSummary}. Course page: ${pageUrl}`
-        ),
-        docs: [{
-          type: 'course',
-          title: `${targetCourse.titleKo} (${targetCourse.titleEn})`,
-          url: pageUrl,
-          score: 1
-        }]
-      };
-    }
-  }
-
-  if (isCourseIntent(msg)) {
-    const listKo = (COURSES_2026_SPRING || []).map((c) => c.titleKo).join(', ');
-    const listEn = (COURSES_2026_SPRING || []).map((c) => c.titleEn).join(', ');
-    return {
-      reply: tr(
-        lang,
-        `이번 학기 담당 과목은 ${listKo}입니다. 과목 허브: ${SITE_LINKS.coursesHubKo}`,
-        `Courses this semester are ${listEn}. Course hub: ${SITE_LINKS.coursesHubEn}`
-      ),
-      docs: (COURSES_2026_SPRING || []).map((c, i) => ({
-        type: 'course',
-        title: `${c.titleKo} (${c.titleEn})`,
-        url: c.pageKo,
-        score: 1 - i * 0.1
-      }))
-    };
-  }
-
-  if (isPublicationIntent(msg) && isCountIntent(msg)) {
-    return {
-      reply: tr(
-        lang,
-        `홈페이지 기준 국제저널 ${PUBLICATION_STATS.journals}편, 국제학회 ${PUBLICATION_STATS.conferences}편, ITU-T 표준 ${PUBLICATION_STATS.standards}건, 특허 ${PUBLICATION_STATS.patents}건입니다. Google Scholar(${PUBLICATION_STATS.sourceDate}) 기준 works ${PUBLICATION_STATS.scholarWorks}, cited by ${PUBLICATION_STATS.citedBy}입니다.`,
-        `Homepage stats: ${PUBLICATION_STATS.journals} journals, ${PUBLICATION_STATS.conferences} conferences, ${PUBLICATION_STATS.standards} ITU-T standards, ${PUBLICATION_STATS.patents} patents. Google Scholar (${PUBLICATION_STATS.sourceDate}): works ${PUBLICATION_STATS.scholarWorks}, cited by ${PUBLICATION_STATS.citedBy}.`
-      ),
-      docs: [{ type: 'publication_stats', title: 'Publication Stats', url: SITE_LINKS.publications, score: 1 }]
-    };
-  }
-
-  if (isPublicationIntent(msg) && isLatestIntent(msg)) {
-    const latest = [...(PUBLICATIONS || [])].sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 3);
-    const lines = latest.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
-    return {
-      reply: tr(lang, `최근 논문은 다음과 같습니다.\n${lines}`, `Recent papers:\n${lines}`),
-      docs: latest.map((p, i) => ({
-        type: 'publication',
-        title: `${p.title} (${p.year}) - ${p.journal}`,
-        url: p.doi || SITE_LINKS.publications,
-        score: 1 - i * 0.1
-      }))
-    };
-  }
-
-  if (isPublicationIntent(msg) && isRepresentativeIntent(msg)) {
-    const rep = [...(PUBLICATIONS || [])]
-      .filter((p) => /IEEE/i.test(p.journal || ''))
-      .sort((a, b) => (b.year || 0) - (a.year || 0))
-      .slice(0, 3);
-    const lines = rep.map((p) => `${p.title} (${p.journal}, ${p.year})${p.doi ? `, DOI: ${p.doi}` : ''}`).join('\n');
-    return {
-      reply: tr(lang, `대표 실적(IEEE 중심)은 다음과 같습니다.\n${lines}`, `Representative outputs (IEEE-focused):\n${lines}`),
-      docs: rep.map((p, i) => ({
-        type: 'publication',
-        title: `${p.title} (${p.year}) - ${p.journal}`,
-        url: p.doi || SITE_LINKS.publications,
-        score: 1 - i * 0.1
-      }))
-    };
-  }
-
-  if (isPublicationIntent(msg) && isCoauthorIntent(msg) && isMostIntent(msg)) {
-    const top = coauthorTop().slice(0, 3);
-    if (top.length) {
-      const summary = top.map(([name, cnt]) => `${name} (${cnt})`).join(', ');
-      return {
-        reply: tr(lang, `공동저자 상위는 ${summary} 입니다.`, `Top coauthors are ${summary}.`),
-        docs: top.map(([name, cnt], i) => ({
-          type: 'coauthor',
-          title: `${name} (${cnt})`,
-          url: SITE_LINKS.publications,
-          score: 1 - i * 0.1
-        }))
-      };
-    }
-  }
-
-  if (isPublicationIntent(msg)) {
-    const matched = findPublication(msg);
-    if (matched) {
-      return {
-        reply: tr(
-          lang,
-          `${matched.title}는 ${matched.year}년 ${matched.journal} 게재 논문입니다.${matched.doi ? ` DOI: ${matched.doi}` : ''}`,
-          `${matched.title} was published in ${matched.journal} (${matched.year}).${matched.doi ? ` DOI: ${matched.doi}` : ''}`
-        ),
-        docs: [{
-          type: 'publication',
-          title: `${matched.title} (${matched.year}) - ${matched.journal}`,
-          url: matched.doi || SITE_LINKS.publications,
-          score: 1
-        }]
-      };
-    }
-  }
-
-  if (isBeforeThatIntent(msg)) {
-    const historyText = normalize((history || []).map((h) => h?.content || '').join(' '));
-    const djuHint = /(대전대학교|조교수|assistant professor|daejeon)/i.test(historyText);
-    const sayberryHint = /(sayberry|세이베리|game developer|게임 개발)/i.test(historyText);
-
-    if (sayberryHint) {
-      return {
-        reply: tr(
-          lang,
-          `${SITE_PROFILE.formerIndustryPeriod} 이전에는 ${SITE_PROFILE.postdocPeriod} 동안 ${SITE_PROFILE.postdocRole}로 근무했습니다.`,
-          `Before ${SITE_PROFILE.formerIndustryPeriod}, he worked as ${SITE_PROFILE.postdocRole} during ${SITE_PROFILE.postdocPeriod}.`
-        ),
-        docs: timelineDocs
-      };
-    }
-
-    if (djuHint) {
-      return {
-        reply: tr(
-          lang,
-          `대전대학교 부임 직전에는 ${SITE_PROFILE.formerIndustryPeriod} 동안 ${SITE_PROFILE.formerIndustryRole}로 근무했습니다.`,
-          `Right before joining Daejeon University, he worked as ${SITE_PROFILE.formerIndustryRole} during ${SITE_PROFILE.formerIndustryPeriod}.`
-        ),
-        docs: timelineDocs
-      };
-    }
-  }
-
-  if (/(경력|career|포닥|postdoc|kaist|정보전자연구소)/i.test(msg)) {
-    const linesKo = timeline.map((item) => `- ${item.period}: ${item.role}`).join('\n');
-    const linesEn = timeline.map((item) => `- ${item.period}: ${item.role}`).join('\n');
-    return {
-      reply: tr(lang, `주요 경력은 다음과 같습니다.\n${linesKo}`, `Career timeline:\n${linesEn}`),
-      docs: timelineDocs
-    };
-  }
-
-  if (isProjectIntent(msg)) {
-    return {
-      reply: tr(lang, `현재 1인 개발 프로젝트는 Hexagon Soup이며 링크는 ${SITE_PROFILE.currentProjectUrl}입니다.`, `Current solo project is Hexagon Soup. Link: ${SITE_PROFILE.currentProjectUrl}`),
-      docs: [{ type: 'project', title: SITE_PROFILE.currentProject, url: SITE_PROFILE.currentProjectUrl, score: 1 }]
-    };
-  }
-
-  if (isProfileIntent(msg)) {
-    return {
-      reply: tr(lang, `${SITE_PROFILE.nameKo} 교수는 ${SITE_PROFILE.appointmentDate}부터 ${SITE_PROFILE.affiliationKo} 조교수로 재직 중입니다.`, `${SITE_PROFILE.nameEn} has been Assistant Professor at ${SITE_PROFILE.affiliationEn} since ${SITE_PROFILE.appointmentDate}.`),
-      docs: [{ type: 'profile', title: `${SITE_PROFILE.nameKo} (${SITE_PROFILE.nameEn})`, url: SITE_LINKS.aboutKo, score: 1 }]
-    };
-  }
-
-  return null;
-}
-
 function buildPrompt(message, history, retrieved, lang) {
   const recent = safeHistory(history)
     .slice(-6)
@@ -725,10 +595,12 @@ function buildPrompt(message, history, retrieved, lang) {
 
   return [
     `You are the official homepage assistant for ${SITE_PROFILE.nameEn}.`,
-    '- Use only given facts and context.',
-    '- Never invent missing history.',
-    '- Contact email is sangdon.park@dju.kr.',
-    '- Keep answer concise and factual.',
+    '- Answer strictly from the given context.',
+    '- If context is insufficient, say the information is not currently confirmed in provided materials.',
+    '- For exam-range or grading questions, quote exact range/weights from context.',
+    '- For follow-up questions, use recent conversation to resolve omitted subject/course.',
+    `- Contact email is ${SITE_PROFILE.email}.`,
+    '- Keep answer concise and factual (1-4 sentences).',
     `- Respond in ${lang === 'ko' ? 'Korean' : 'English'}.`,
     '',
     `Question: ${message}`,
@@ -763,6 +635,212 @@ async function generateReply(prompt, apiKey) {
     console.error('generate reply error:', error);
     return null;
   }
+}
+
+function isWeakReply(text = '') {
+  const n = normalize(text);
+  if (!n) return true;
+  if (n.length < 8) return true;
+  return /(질문 확인|찾아보겠|how can i help|cannot classify|관련 자료를 찾았습니다\. 우선)/i.test(text);
+}
+
+function parseCoverageFromDocText(text = '', type = 'midterm') {
+  const source = String(text || '');
+  const patterns = type === 'midterm'
+    ? [
+      /Midterm coverage:\s*([^.\n]+)/i,
+      /중간고사\s*범위[:\s]*([^.\n]+)/i,
+      /중간고사[^.\n]{0,120}?\(([^)]+)\)/i
+    ]
+    : [
+      /Final coverage:\s*([^.\n]+)/i,
+      /기말고사\s*범위[:\s]*([^.\n]+)/i,
+      /기말고사[^.\n]{0,120}?\(([^)]+)\)/i,
+      /Final(?:\s+Exam)?[^.\n]{0,120}?\(([^)]+)\)/i
+    ];
+  return pickFirstMatch(source, patterns);
+}
+
+function parseGradingFromDocText(text = '') {
+  const source = String(text || '');
+  return pickFirstMatch(source, [
+    /Grading:\s*([^.\n]+)/i,
+    /평가\s*배점[:\s]*([^.\n]+)/i
+  ]);
+}
+
+function summarizeTopDoc(top, lang) {
+  const doc = top?.doc || top;
+  if (!doc) {
+    return tr(
+      lang,
+      '현재 질문에 대해 확인 가능한 근거가 부족합니다. 과목명이나 논문 제목을 함께 보내주세요.',
+      'I need a more specific keyword (course name or paper title) to answer accurately.'
+    );
+  }
+
+  if (doc.type === 'publication') {
+    const line = `${doc.title} (${doc.year || 'N/A'})${doc.journal ? `, ${doc.journal}` : ''}`;
+    return tr(
+      lang,
+      `관련 논문은 ${line}입니다.${doc.url ? ` 링크: ${doc.url}` : ''}`,
+      `A relevant paper is ${line}.${doc.url ? ` Link: ${doc.url}` : ''}`
+    );
+  }
+
+  if (doc.type === 'course' || doc.type === 'course_fact') {
+    return tr(
+      lang,
+      `${doc.title} 관련 정보입니다. 자세한 내용은 ${doc.url || SITE_LINKS.coursesHubKo}에서 확인할 수 있습니다.`,
+      `This is course information for ${doc.title}. Details: ${doc.url || SITE_LINKS.coursesHubEn}`
+    );
+  }
+
+  return tr(
+    lang,
+    `관련 정보: ${doc.title}${doc.url ? ` (${doc.url})` : ''}`,
+    `Relevant information: ${doc.title}${doc.url ? ` (${doc.url})` : ''}`
+  );
+}
+
+function buildFallbackReply(message, retrieved, lang, history = []) {
+  if (isContactIntent(message)) {
+    return tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`);
+  }
+
+  if (isProfileIntent(message)) {
+    return tr(
+      lang,
+      `${SITE_PROFILE.nameKo} 교수는 ${SITE_PROFILE.appointmentDate}부터 ${SITE_PROFILE.affiliationKo} 조교수로 재직 중입니다.`,
+      `${SITE_PROFILE.nameEn} has been Assistant Professor at ${SITE_PROFILE.affiliationEn} since ${SITE_PROFILE.appointmentDate}.`
+    );
+  }
+
+  if (isBeforeThatIntent(message)) {
+    const historyText = normalize((history || []).map((h) => h?.content || '').join(' '));
+    const djuHint = /(대전대학교|조교수|assistant professor|daejeon)/i.test(historyText);
+    const sayberryHint = /(sayberry|세이베리|game developer|게임 개발)/i.test(historyText);
+
+    if (sayberryHint) {
+      return tr(
+        lang,
+        `${SITE_PROFILE.formerIndustryPeriod} 이전에는 ${SITE_PROFILE.postdocPeriod} 동안 ${SITE_PROFILE.postdocRole}로 근무했습니다.`,
+        `Before ${SITE_PROFILE.formerIndustryPeriod}, he worked as ${SITE_PROFILE.postdocRole} during ${SITE_PROFILE.postdocPeriod}.`
+      );
+    }
+    if (djuHint) {
+      return tr(
+        lang,
+        `대전대학교 부임 직전에는 ${SITE_PROFILE.formerIndustryPeriod} 동안 ${SITE_PROFILE.formerIndustryRole}로 근무했습니다.`,
+        `Right before joining Daejeon University, he worked as ${SITE_PROFILE.formerIndustryRole} during ${SITE_PROFILE.formerIndustryPeriod}.`
+      );
+    }
+  }
+
+  if (!retrieved || retrieved.length === 0) {
+    return tr(
+      lang,
+      `현재 제공된 자료에서 바로 확인되지 않습니다. 과목명/논문제목 등 키워드를 함께 보내주세요. (${SITE_PROFILE.email})`,
+      `I cannot confirm this from the current materials. Please include a specific keyword (course or paper title). (${SITE_PROFILE.email})`
+    );
+  }
+
+  if (isExamIntent(message)) {
+    const explicitCourse = findCourseInText(message);
+    const historyCourse = findCourseFromHistory(history);
+    const targetCourse = explicitCourse || historyCourse;
+    const wantsMidterm = /(중간|midterm)/i.test(message);
+    const wantsFinal = /(기말|final)/i.test(message);
+
+    const courseDocs = retrieved
+      .map((r) => r.doc || r)
+      .filter((d) => d.type === 'course_fact' || d.type === 'course');
+
+    const filteredDocs = targetCourse
+      ? courseDocs.filter((d) => normalize(d.title).includes(normalize(targetCourse.titleKo)) || normalize(d.title).includes(normalize(targetCourse.titleEn)))
+      : courseDocs;
+
+    const docsForRange = filteredDocs.length ? filteredDocs : courseDocs;
+    const mid = docsForRange.map((d) => parseCoverageFromDocText(d.text, 'midterm')).find(Boolean);
+    const fin = docsForRange.map((d) => parseCoverageFromDocText(d.text, 'final')).find(Boolean);
+
+    if (wantsMidterm && mid) {
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}중간고사 범위는 ${mid}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}midterm coverage is ${mid}.`
+      );
+    }
+    if (wantsFinal && fin) {
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}기말고사 범위는 ${fin}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}final coverage is ${fin}.`
+      );
+    }
+    if (!wantsMidterm && !wantsFinal && (mid || fin)) {
+      const parts = [];
+      if (mid) parts.push(`중간 ${mid}`);
+      if (fin) parts.push(`기말 ${fin}`);
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}시험 범위는 ${parts.join(' / ')}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}exam coverage is ${parts.join(' / ')}.`
+      );
+    }
+
+    return tr(
+      lang,
+      '해당 시험 범위는 현재 수집된 자료에서 명시적으로 확인되지 않습니다. 과목 페이지 공지를 함께 확인해 주세요.',
+      'The requested exam coverage is not explicitly confirmed in the collected materials yet. Please also check course announcements.'
+    );
+  }
+
+  if (isGradingIntent(message)) {
+    const explicitCourse = findCourseInText(message);
+    const historyCourse = findCourseFromHistory(history);
+    const targetCourse = explicitCourse || historyCourse;
+
+    const courseDocs = retrieved
+      .map((r) => r.doc || r)
+      .filter((d) => d.type === 'course_fact' || d.type === 'course');
+
+    const filteredDocs = targetCourse
+      ? courseDocs.filter((d) => normalize(d.title).includes(normalize(targetCourse.titleKo)) || normalize(d.title).includes(normalize(targetCourse.titleEn)))
+      : courseDocs;
+
+    const grading = (filteredDocs.length ? filteredDocs : courseDocs)
+      .map((d) => parseGradingFromDocText(d.text))
+      .find(Boolean);
+
+    if (grading) {
+      return tr(
+        lang,
+        `${targetCourse ? `${targetCourse.titleKo} ` : ''}평가 배점은 ${grading}입니다.`,
+        `${targetCourse ? `${targetCourse.titleEn} ` : ''}grading is ${grading}.`
+      );
+    }
+  }
+
+  return summarizeTopDoc(retrieved[0], lang);
+}
+
+function classifyStep1(message, lang) {
+  if (isGreeting(message)) {
+    return {
+      action: 'CHAT',
+      query: '',
+      initialMessage: tr(lang, '안녕하세요. 무엇을 도와드릴까요?', 'Hello. How can I help you?'),
+      needsSecondStep: false
+    };
+  }
+
+  return {
+    action: 'SEARCH',
+    query: String(message || '').trim(),
+    initialMessage: tr(lang, '질문 확인했습니다. 관련 정보를 찾아보겠습니다.', 'Got it. I will look up relevant information.'),
+    needsSecondStep: true
+  };
 }
 
 async function logToSupabase(event, payload) {
@@ -826,6 +904,7 @@ exports.handler = async (event) => {
           searchResults: null
         });
       }
+
       return {
         statusCode: 200,
         headers,
@@ -854,53 +933,21 @@ exports.handler = async (event) => {
       };
     }
 
-    const det = await deterministic(message, lang, history);
-    if (det) {
-      const payload = buildSearchPayload(det.docs || []);
-      await logToSupabase(event, {
-        message,
-        reply: det.reply,
-        history,
-        action,
-        searchResults: payload.searchResults
-      });
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          step: 2,
-          reply: det.reply,
-          searchResults: payload.searchResults,
-          searchResultsDetailed: payload.searchResultsDetailed
-        })
-      };
-    }
-
     const apiKey = process.env.GEMINI_API_KEY || '';
-    const query = String(body.query || message).trim();
-    const retrieved = await retrieve(query, apiKey);
+    const rawQuery = String(body.query || message).trim();
+    const query = expandQueryWithHistory(rawQuery, history);
+    const runtimeDocs = await buildRuntimeDocs(query, history, lang);
+    const retrieved = await retrieve(query, apiKey, runtimeDocs);
     const payload = buildSearchPayload(retrieved);
 
     let reply = null;
     if (apiKey) {
-      reply = await generateReply(buildPrompt(message, history, retrieved, lang), apiKey);
+      const prompt = buildPrompt(message, history, retrieved, lang);
+      reply = await generateReply(prompt, apiKey);
     }
 
-    if (!reply) {
-      if (retrieved.length > 0) {
-        const top = retrieved[0].doc || retrieved[0];
-        reply = tr(
-          lang,
-          `관련 자료를 찾았습니다. 우선 "${top.title}" 항목을 확인해 주세요.`,
-          `I found relevant information. Please check "${top.title}" first.`
-        );
-      } else {
-        reply = tr(
-          lang,
-          `질문을 정확히 분류하지 못했습니다. 논문/강의/경력/연락처 중 하나로 다시 질문해 주세요. (${SITE_PROFILE.email})`,
-          `I could not classify the question precisely. Please ask again about publications/courses/career/contact. (${SITE_PROFILE.email})`
-        );
-      }
+    if (!reply || isWeakReply(reply)) {
+      reply = buildFallbackReply(message, retrieved, lang, history);
     }
 
     if (isContactIntent(message) && !reply.includes(SITE_PROFILE.email)) {
