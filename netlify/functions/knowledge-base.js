@@ -57,21 +57,27 @@ const COURSES_2026_SPRING = [
     "titleKo": "\uB370\uC774\uD130\uBCA0\uC774\uC2A4\uC2DC\uC2A4\uD15C",
     "titleEn": "Database Systems",
     "pageKo": "https://sangdon-park.github.io/courses/database-systems-2026-spring.html",
-    "pageEn": "https://sangdon-park.github.io/courses/database-systems-2026-spring-en.html"
+    "pageEn": "https://sangdon-park.github.io/courses/database-systems-2026-spring-en.html",
+    "gradingSummaryKo": "\uD034\uC988/\uACFC\uC81C 30% \u00b7 \uC911\uAC04\uACE0\uC0AC 30% \u00b7 \uAE30\uB9D0\uACE0\uC0AC 30% \u00b7 \uCD9C\uC11D 10%",
+    "gradingSummaryEn": "Quizzes/Assignments 30% + Midterm 30% + Final 30% + Attendance 10%"
   },
   {
     "code": "AI",
     "titleKo": "\uC778\uACF5\uC9C0\uB2A5",
     "titleEn": "Artificial Intelligence",
     "pageKo": "https://sangdon-park.github.io/courses/artificial-intelligence-2026-spring.html",
-    "pageEn": "https://sangdon-park.github.io/courses/artificial-intelligence-2026-spring-en.html"
+    "pageEn": "https://sangdon-park.github.io/courses/artificial-intelligence-2026-spring-en.html",
+    "gradingSummaryKo": "\uC911\uAC04\uACE0\uC0AC 30\uC810 \u00b7 \uAE30\uB9D0\uACE0\uC0AC 30\uC810 \u00b7 \uD034\uC988 10\uC810 \u00b7 \uAE30\uB9D0 \uD504\uB85C\uC81D\uD2B8 20\uC810 \u00b7 \uCD9C\uC11D+\uD575\uC2EC\uC5ED\uB7C9\uD3C9\uAC00 10\uC810",
+    "gradingSummaryEn": "Midterm 30 + Final 30 + Quiz 10 + Final Project 20 + Attendance/Core Competency 10"
   },
   {
     "code": "Capstone",
     "titleKo": "\uCEA1\uC2A4\uD1A4\uB514\uC790\uC778",
     "titleEn": "Capstone Design",
     "pageKo": "https://sangdon-park.github.io/courses/capstone-design-2026-spring.html",
-    "pageEn": "https://sangdon-park.github.io/courses/capstone-design-2026-spring-en.html"
+    "pageEn": "https://sangdon-park.github.io/courses/capstone-design-2026-spring-en.html",
+    "gradingSummaryKo": "\uC0B0\uCD9C\uBB3C/\uBC1C\uD45C/\uD300\uAE30\uC5EC\uB3C4 \uAE30\uC900 (\uC0C1\uC138 \uD3C9\uAC00\uD45C\uB294 \uACFC\uBAA9 \uD398\uC774\uC9C0 \uCC38\uC870)",
+    "gradingSummaryEn": "Deliverables/presentation/team contribution rubric (see course page for details)"
   }
 ];
 

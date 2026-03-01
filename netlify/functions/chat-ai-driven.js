@@ -67,6 +67,10 @@ function isCourseIntent(text = '') {
   return /(수업|강의|과목|가르치|이번\s*학기|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
 }
 
+function isGradingIntent(text = '') {
+  return /(점수|배점|비율|평가|채점|grading|score|scores|weight|weights|rubric|evaluation)/i.test(text);
+}
+
 function isContactIntent(text = '') {
   return /(연락|이메일|문의|메일|email|contact|reach)/i.test(text);
 }
@@ -101,6 +105,22 @@ function isMostIntent(text = '') {
 
 function isBeforeThatIntent(text = '') {
   return /(그전|그 전|이전|전에는|before that|before|prior)/i.test(text);
+}
+
+function findCourseInMessage(text = '') {
+  const msg = String(text || '');
+
+  if (/(데이터베이스|db\s*시스템|db시스템|database|db systems?)/i.test(msg)) {
+    return (COURSES_2026_SPRING || []).find((c) => c.code === 'DB Systems') || null;
+  }
+  if (/(인공지능|artificial intelligence|\bai\b)/i.test(msg)) {
+    return (COURSES_2026_SPRING || []).find((c) => c.code === 'AI') || null;
+  }
+  if (/(캡스톤|capstone)/i.test(msg)) {
+    return (COURSES_2026_SPRING || []).find((c) => c.code === 'Capstone') || null;
+  }
+
+  return null;
 }
 
 function safeHistory(history = []) {
@@ -183,7 +203,7 @@ function buildDocs() {
       id: `course-${c.code}`,
       type: 'course',
       title: `${c.titleKo} (${c.titleEn})`,
-      text: `2026 Spring course: ${c.titleKo} (${c.titleEn}). Page: ${c.pageKo}`,
+      text: `2026 Spring course: ${c.titleKo} (${c.titleEn}). Grading: ${c.gradingSummaryKo || c.gradingSummaryEn || 'N/A'}. Page: ${c.pageKo}`,
       url: c.pageKo,
       year: 2026
     });
@@ -389,6 +409,29 @@ function deterministic(message, lang, history = []) {
       reply: tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`),
       docs: [{ type: 'contact', title: 'Contact & Collaboration', url: SITE_LINKS.collaborationKo, score: 1 }]
     };
+  }
+
+  if (isCourseIntent(msg) && isGradingIntent(msg)) {
+    const historyText = (history || []).map((h) => h?.content || '').join(' ');
+    const targetCourse = findCourseInMessage(msg) || findCourseInMessage(historyText);
+
+    if (targetCourse) {
+      const koSummary = targetCourse.gradingSummaryKo || '해당 과목의 배점 정보는 과목 페이지를 확인해 주세요.';
+      const enSummary = targetCourse.gradingSummaryEn || 'Please check the course page for grading details.';
+      return {
+        reply: tr(
+          lang,
+          `${targetCourse.titleKo} 평가 배점은 ${koSummary} 입니다. 과목 페이지: ${targetCourse.pageKo}`,
+          `Grading for ${targetCourse.titleEn}: ${enSummary}. Course page: ${targetCourse.pageEn || targetCourse.pageKo}`
+        ),
+        docs: [{
+          type: 'course',
+          title: `${targetCourse.titleKo} (${targetCourse.titleEn})`,
+          url: targetCourse.pageKo,
+          score: 1
+        }]
+      };
+    }
   }
 
   if (isCourseIntent(msg)) {
