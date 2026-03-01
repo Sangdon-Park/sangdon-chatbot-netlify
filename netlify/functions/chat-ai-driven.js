@@ -291,6 +291,145 @@ async function fetchHomepageSnapshotDocs() {
   return docs;
 }
 
+function toInt(value) {
+  const n = Number(String(value || '').replace(/,/g, '').trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function extractPublicationStatsFromText(text = '') {
+  const src = String(text || '');
+  const works = toInt(
+    pickFirstMatch(src, [
+      /with\s*([0-9,]+)\s*works?/i,
+      /works?\s*[:=]\s*([0-9,]+)/i,
+      /총\s*([0-9,]+)\s*편/i
+    ])
+  );
+  const citedBy = toInt(
+    pickFirstMatch(src, [
+      /cited by\s*[:=]?\s*([0-9,]+)/i,
+      /피인용(?:수)?\s*[:=]?\s*([0-9,]+)/i
+    ])
+  );
+  const journals = toInt(
+    pickFirstMatch(src, [
+      /journals?\s*[:=]?\s*([0-9,]+)/i,
+      /국제저널\s*([0-9,]+)\s*편/i
+    ])
+  );
+  const conferences = toInt(
+    pickFirstMatch(src, [
+      /conferences?\s*[:=]?\s*([0-9,]+)/i,
+      /국제학회\s*([0-9,]+)\s*편/i
+    ])
+  );
+  const total = (Number.isFinite(journals) && Number.isFinite(conferences))
+    ? journals + conferences
+    : (Number.isFinite(works) ? works : null);
+
+  return { works, citedBy, journals, conferences, total };
+}
+
+function sanitizePublicationStats(stats = {}) {
+  let works = Number.isFinite(stats.works) ? stats.works : null;
+  let citedBy = Number.isFinite(stats.citedBy) ? stats.citedBy : null;
+  let journals = Number.isFinite(stats.journals) ? stats.journals : null;
+  let conferences = Number.isFinite(stats.conferences) ? stats.conferences : null;
+
+  if (!Number.isFinite(works) || works <= 0 || works > 5000) works = null;
+  if (!Number.isFinite(citedBy) || citedBy <= 0 || citedBy > 1000000) citedBy = null;
+  if (!Number.isFinite(journals) || journals <= 0 || journals > 1000) journals = null;
+  if (!Number.isFinite(conferences) || conferences <= 0 || conferences > 1000) conferences = null;
+
+  const total = (Number.isFinite(journals) && Number.isFinite(conferences))
+    ? journals + conferences
+    : null;
+
+  return { works, citedBy, journals, conferences, total };
+}
+
+function deriveResearchTracksFromText(text = '') {
+  const src = String(text || '');
+  const tracks = [];
+
+  if (/(edge|엣지|mec|network|네트워크|resource|자원|pricing|가격)/i.test(src)) {
+    tracks.push('edge/network resource optimization and dynamic pricing');
+  }
+  if (/(llm|large language|rag|tool[-\s]*use|agent|evaluation|ai|인공지능)/i.test(src)) {
+    tracks.push('AI/LLM systems (RAG, tool-use, agent evaluation)');
+  }
+  if (/(game|게임|interactive|vibe coding)/i.test(src)) {
+    tracks.push('game development and interactive AI applications');
+  }
+
+  return Array.from(new Set(tracks));
+}
+
+function localizeResearchTrack(track = '', lang = 'ko') {
+  const map = {
+    'edge/network resource optimization and dynamic pricing': {
+      ko: '엣지/네트워크 자원 최적화 및 동적 가격결정',
+      en: 'edge/network resource optimization and dynamic pricing'
+    },
+    'AI/LLM systems (RAG, tool-use, agent evaluation)': {
+      ko: 'AI/LLM 시스템 (RAG, tool-use, agent 평가)',
+      en: 'AI/LLM systems (RAG, tool-use, agent evaluation)'
+    },
+    'game development and interactive AI applications': {
+      ko: '게임 개발 및 인터랙티브 AI 응용',
+      en: 'game development and interactive AI applications'
+    }
+  };
+  return map[track]?.[lang] || track;
+}
+
+function buildSiteFactDocs(homepageDocs = []) {
+  const docs = [];
+  if (!Array.isArray(homepageDocs) || !homepageDocs.length) return docs;
+
+  const merged = homepageDocs
+    .map((d) => `${d.title || ''} ${d.text || ''}`)
+    .join('\n');
+
+  const publicationMerged = homepageDocs
+    .filter((d) => {
+      const source = `${d.title || ''} ${d.text || ''}`;
+      const inPublicationPage = /(publications|ko\.html|en\.html)/i.test(String(d.url || ''));
+      const hasPublicationStatsCue = /(cited by|works?|journals?|conferences?|국제저널|국제학회|피인용|google scholar)/i.test(source);
+      return inPublicationPage && hasPublicationStatsCue;
+    })
+    .map((d) => `${d.title || ''} ${d.text || ''}`)
+    .join('\n');
+
+  const stats = sanitizePublicationStats(
+    extractPublicationStatsFromText(publicationMerged || merged)
+  );
+  if (stats.total || stats.journals || stats.conferences || stats.works || stats.citedBy) {
+    docs.push({
+      id: 'site-fact-publication-stats',
+      type: 'site_fact',
+      title: 'Site Synced Publication Stats',
+      text: `Site synced stats: total papers ${stats.total ?? 'N/A'}, journals ${stats.journals ?? 'N/A'}, conferences ${stats.conferences ?? 'N/A'}, works ${stats.works ?? 'N/A'}, cited by ${stats.citedBy ?? 'N/A'}.`,
+      url: SITE_LINKS.publications,
+      year: 2026
+    });
+  }
+
+  const tracks = deriveResearchTracksFromText(merged);
+  if (tracks.length) {
+    docs.push({
+      id: 'site-fact-research-areas',
+      type: 'site_fact',
+      title: 'Site Synced Research Areas',
+      text: `Site synced research areas: ${tracks.join('; ')}.`,
+      url: SITE_LINKS.aboutKo,
+      year: 2026
+    });
+  }
+
+  return docs;
+}
+
 function extractGradingSummaryFromHtml(html = '') {
   const tablePattern = /<table[^>]*class=["'][^"']*course-table[^"']*["'][^>]*>[\s\S]*?<\/table>/gi;
   const tables = String(html).match(tablePattern) || [];
@@ -611,15 +750,6 @@ function buildBaseDocs() {
     year: 2026
   });
 
-  docs.push({
-    id: 'research',
-    type: 'research',
-    title: 'Research Areas',
-    text: buildResearchSummary('en'),
-    url: SITE_LINKS.aboutKo,
-    year: 2026
-  });
-
   timeline.forEach((item, idx) => {
     docs.push({
       id: `career-${idx}`,
@@ -728,12 +858,34 @@ function computePublicationMetrics() {
   };
 }
 
-function buildResearchSummary(lang = 'ko') {
+function getDocsArray(retrieved = []) {
+  return (retrieved || []).map((r) => r.doc || r).filter(Boolean);
+}
+
+function buildResearchSummaryFromRetrieved(retrieved = [], lang = 'ko') {
+  const docs = getDocsArray(retrieved);
+  const siteFact = docs.find((d) => d.type === 'site_fact' && /research areas/i.test(String(d.title || '')));
+  const sourceText = siteFact?.text
+    ? String(siteFact.text)
+    : docs.map((d) => `${d.title || ''} ${d.text || ''}`).join('\n');
+  const tracks = deriveResearchTracksFromText(sourceText);
+  if (!tracks.length) return null;
+
+  const localized = tracks.map((t) => localizeResearchTrack(t, lang));
+
   return tr(
     lang,
-    '주 연구분야는 AI x Games 관점의 시스템 연구입니다. 핵심 축은 1) 엣지컴퓨팅/네트워크 자원 최적화와 동적 가격결정, 2) AI·LLM 시스템 설계(RAG, tool-use, agent/evaluation), 3) 게임 개발 및 인터랙티브 AI 응용입니다.',
-    'Main research area is AI x Games systems. Core tracks are: 1) edge/network resource optimization and dynamic pricing, 2) AI/LLM system design (RAG, tool-use, agent/evaluation), and 3) game development with interactive AI applications.'
+    `주 연구분야는 ${localized.join(', ')} 중심입니다.`,
+    `Main research areas are ${localized.join(', ')}.`
   );
+}
+
+function extractPublicationStatsFromRetrieved(retrieved = []) {
+  const docs = getDocsArray(retrieved);
+  const priorityDocs = docs.filter((d) => d.type === 'site_fact' || d.type === 'publication_stats');
+  const targetDocs = priorityDocs.length ? priorityDocs : docs;
+  const merged = targetDocs.map((d) => `${d.title || ''} ${d.text || ''}`).join('\n');
+  return sanitizePublicationStats(extractPublicationStatsFromText(merged));
 }
 
 function dedupeDocs(docs = []) {
@@ -822,7 +974,8 @@ async function buildRuntimeDocs(query, history, lang) {
     .map((facts) => buildCourseFactDoc(facts));
 
   const homepageDocs = await fetchHomepageSnapshotDocs();
-  return [...courseFactDocs, ...homepageDocs];
+  const siteFactDocs = buildSiteFactDocs(homepageDocs);
+  return [...courseFactDocs, ...siteFactDocs, ...homepageDocs];
 }
 
 async function retrieve(query, apiKey, runtimeDocs = []) {
@@ -833,9 +986,19 @@ async function retrieve(query, apiKey, runtimeDocs = []) {
 
   let candidates;
   if (isPublicationCountIntent(query) || isFirstAuthorIntent(query)) {
-    const statsDocs = ranked.filter((r) => r.doc.type === 'publication_stats').slice(0, 1);
+    const statsDocs = ranked
+      .filter((r) => r.doc.type === 'site_fact' || r.doc.type === 'publication_stats')
+      .slice(0, 2);
     const pubDocs = ranked.filter((r) => r.doc.type === 'publication').slice(0, 21);
     candidates = [...statsDocs, ...pubDocs];
+  } else if (isResearchIntent(query)) {
+    const factDocs = ranked
+      .filter((r) => r.doc.type === 'site_fact' && /research areas/i.test(String(r.doc.title || '')))
+      .slice(0, 2);
+    const aboutDocs = ranked
+      .filter((r) => r.doc.type === 'site' && /(about|ko\.html|en\.html)/i.test(String(r.doc.url || '')))
+      .slice(0, 20);
+    candidates = [...factDocs, ...aboutDocs];
   } else {
     candidates = ranked.filter((r) => r.lexical > 0).slice(0, 22);
   }
@@ -1103,14 +1266,24 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
   }
 
   if (isResearchIntent(message)) {
+    const summary = buildResearchSummaryFromRetrieved(retrieved, lang);
+    if (summary) {
+      return tr(
+        lang,
+        `${summary} 자세한 내용: ${SITE_LINKS.aboutKo}`,
+        `${summary} Details: ${SITE_LINKS.aboutEn}`
+      );
+    }
+
     return tr(
       lang,
-      `${buildResearchSummary('ko')} 자세한 내용: ${SITE_LINKS.aboutKo}`,
-      `${buildResearchSummary('en')} Details: ${SITE_LINKS.aboutEn}`
+      `주 연구분야 정보는 ${SITE_LINKS.aboutKo}의 최신 내용을 기준으로 안내합니다.`,
+      `Research areas are answered from the latest synced contents of ${SITE_LINKS.aboutEn}.`
     );
   }
 
   if (isPublicationIntent(message) && (isPublicationCountIntent(message) || isFirstAuthorIntent(message))) {
+    const synced = extractPublicationStatsFromRetrieved(retrieved);
     const metrics = computePublicationMetrics();
 
     if (isFirstAuthorIntent(message)) {
@@ -1121,17 +1294,24 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
       );
     }
 
-    if (Number.isFinite(metrics.conferences)) {
-      const scholarTail = Number.isFinite(metrics.scholarWorks)
-        ? ` Google Scholar works는 ${metrics.scholarWorks}개입니다.`
+    const journals = synced.journals ?? metrics.journals;
+    const conferences = synced.conferences ?? metrics.conferences;
+    const total = (Number.isFinite(journals) && Number.isFinite(conferences))
+      ? journals + conferences
+      : metrics.totalPapers;
+    const works = synced.works ?? metrics.scholarWorks;
+
+    if (Number.isFinite(conferences)) {
+      const scholarTail = Number.isFinite(works)
+        ? ` Google Scholar works는 ${works}개입니다.`
         : '';
-      const scholarTailEn = Number.isFinite(metrics.scholarWorks)
-        ? ` Google Scholar works: ${metrics.scholarWorks}.`
+      const scholarTailEn = Number.isFinite(works)
+        ? ` Google Scholar works: ${works}.`
         : '';
       return tr(
         lang,
-        `논문은 총 ${metrics.totalPapers}편입니다. (국제저널 ${metrics.journals}편 + 국제학회 ${metrics.conferences}편)${scholarTail}`,
-        `Total papers: ${metrics.totalPapers} (${metrics.journals} journal papers + ${metrics.conferences} conference papers).${scholarTailEn}`
+        `논문은 총 ${total}편입니다. (국제저널 ${journals}편 + 국제학회 ${conferences}편)${scholarTail}`,
+        `Total papers: ${total} (${journals} journal papers + ${conferences} conference papers).${scholarTailEn}`
       );
     }
 
