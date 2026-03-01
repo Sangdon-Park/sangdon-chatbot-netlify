@@ -74,6 +74,10 @@ function isContactIntent(text = '') {
   return /(연락|이메일|문의|메일|email|contact|reach)/i.test(text);
 }
 
+function isLinkIntent(text = '') {
+  return /(사이트|주소|홈페이지|웹사이트|링크|url|website|site|link|homepage)/i.test(text);
+}
+
 function isCourseIntent(text = '') {
   return /(수업|강의|과목|가르치|이번\s*학기|데이터베이스|인공지능|캡스톤|course|class|lecture|teach|teaching|database|db|capstone|ai)/i.test(text);
 }
@@ -974,6 +978,58 @@ function buildFallbackReply(message, retrieved, lang, history = []) {
     return tr(lang, `문의 이메일은 ${SITE_PROFILE.email}입니다.`, `Contact email: ${SITE_PROFILE.email}.`);
   }
 
+  if (isLinkIntent(message)) {
+    const text = String(message || '');
+    if (/(hexagon|steam|project|게임|프로젝트)/i.test(text)) {
+      return tr(
+        lang,
+        `Hexagon Soup 링크는 ${SITE_PROFILE.currentProjectUrl}입니다.`,
+        `Hexagon Soup link: ${SITE_PROFILE.currentProjectUrl}`
+      );
+    }
+    if (/(scholar|구글\s*스칼라|google\s*scholar|citation)/i.test(text)) {
+      return tr(
+        lang,
+        `Google Scholar 주소는 ${SITE_PROFILE.scholarUrl}입니다.`,
+        `Google Scholar URL: ${SITE_PROFILE.scholarUrl}`
+      );
+    }
+    if (/(github|깃허브)/i.test(text)) {
+      return tr(
+        lang,
+        `GitHub 주소는 ${SITE_PROFILE.githubUrl}입니다.`,
+        `GitHub URL: ${SITE_PROFILE.githubUrl}`
+      );
+    }
+    if (/(linkedin|링크드인)/i.test(text)) {
+      return tr(
+        lang,
+        `LinkedIn 주소는 ${SITE_PROFILE.linkedinUrl}입니다.`,
+        `LinkedIn URL: ${SITE_PROFILE.linkedinUrl}`
+      );
+    }
+    if (/(논문|publication|publications)/i.test(text)) {
+      return tr(
+        lang,
+        `논문 페이지 주소는 ${SITE_LINKS.publications}입니다.`,
+        `Publications page URL: ${SITE_LINKS.publications}`
+      );
+    }
+    if (/(과목|강의|수업|course|teaching)/i.test(text)) {
+      return tr(
+        lang,
+        `과목 허브 주소는 ${SITE_LINKS.coursesHubKo}입니다.`,
+        `Course hub URL: ${SITE_LINKS.coursesHubEn}`
+      );
+    }
+
+    return tr(
+      lang,
+      `공식 홈페이지 주소는 ${SITE_PROFILE.website}입니다. 한국어 페이지: ${SITE_LINKS.homeKo}, 영어 페이지: ${SITE_LINKS.homeEn}`,
+      `Official website URL: ${SITE_PROFILE.website}. Korean page: ${SITE_LINKS.homeKo}, English page: ${SITE_LINKS.homeEn}`
+    );
+  }
+
   if (isProfileIntent(message)) {
     return tr(
       lang,
@@ -1254,7 +1310,7 @@ exports.handler = async (event) => {
     const retrieved = await retrieve(query, apiKey, runtimeDocs);
     const payload = buildSearchPayload(retrieved);
 
-    const forceFallback = isBeforeThatIntent(message) || isExamIntent(message) || isGradingIntent(message) || isTextbookIntent(message);
+    const forceFallback = isBeforeThatIntent(message) || isExamIntent(message) || isGradingIntent(message) || isTextbookIntent(message) || isLinkIntent(message);
     let reply = null;
     if (apiKey && !forceFallback) {
       const prompt = buildPrompt(message, history, retrieved, lang);
