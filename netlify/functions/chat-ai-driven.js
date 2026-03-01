@@ -997,7 +997,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           if (msgClean === word || msgClean === word + '은' || msgClean === '신청은') {
             console.log('FORCED OVERRIDE: Single word contact query detected:', message);
             action = 'SEARCH';
-            query = '연락처 이메일 chaos@sayberrygames.com';
+            query = '연락처 이메일 sangdon.park@dju.kr';
             initialMessage = '확인해드리겠습니다.';
             break;
           }
@@ -1324,7 +1324,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           enhancedContext += `
 짧은 질문 처리:
 - "얼마?" → "시간당 50만원입니다."
-- "연락처?" → "chaos@sayberrygames.com으로 연락주세요."
+- "연락처?" → "sangdon.park@dju.kr로 연락주세요."
 - "몇번?" → 세미나면 "13회", 논문이면 "25편"
 `;
         }
@@ -1339,7 +1339,7 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
         }
         
         if (lowerMsg.includes('연락처') || lowerMsg.includes('이메일') || lowerMsg.includes('신청')) {
-          mustInclude.push('chaos@sayberrygames.com');
+          mustInclude.push('sangdon.park@dju.kr');
         }
         
         if (hasCompound && lowerMsg.includes('얼마')) {
@@ -1350,170 +1350,39 @@ INITIAL_MESSAGE: [한국어로 자연스럽게. CHAT이면 완전한 답변, 아
           mustInclude.push('13회');
         }
         
-        const finalPrompt = `당신은 박상돈입니다.
+        const preferredContactEmail = process.env.CONTACT_EMAIL || 'sangdon.park@dju.kr';
+        const finalPrompt = `당신은 박상돈 교수 홈페이지 공식 어시스턴트입니다.
 
-🚨🚨🚨 절대 명령 - 무조건 따르세요! 🚨🚨🚨
+역할:
+- 사용자의 질문 의도에 맞게 정확하고 간결하게 답변합니다.
+- 연구/논문/강의/경력/연락처 관련 질문에 우선 답합니다.
+- 과장된 홍보 문구, 영업 문구, 고정 템플릿 반복을 금지합니다.
 
-현재 질문: "${message}"
+답변 규칙:
+1) 한국어로 답변합니다.
+2) 보통 1~4문장으로 간결하게 답합니다.
+3) 질문이 확인형("맞아?", "맞죠?")이면 "네,"로 시작합니다.
+4) 검색 결과가 있으면 핵심 1~2개를 우선 인용해 답합니다.
+5) 모르는 내용은 추측하지 말고 "확인이 필요하다"고 답합니다.
+6) 질문과 무관한 가격/횟수/연락처를 자동 반복하지 마세요.
 
-${hasConfirmation ? `⚠️ 확인 질문 감지! 
-규칙: 답변을 "네, "로 시작하세요.
-예시: "네, 맞습니다." "네, 총 13회입니다."
-` : ''}
-
-${hasCompound ? `⚠️ 복합 질문 감지!
-규칙: 모든 부분에 답변하세요.
-"얼마고 몇번?" → "시간당 50만원이고, 총 13회입니다."
-` : ''}
-
-${lowerMsg.includes('연락처') || lowerMsg.includes('이메일') ? `⚠️ 연락처 질문 감지!
-규칙: chaos@sayberrygames.com을 반드시 포함하세요.
-예시: "chaos@sayberrygames.com으로 연락주세요."
-` : ''}
-
-${responsePrefix ? `시작 문구: "${responsePrefix}"` : ''}
-${mustInclude.length > 0 ? `필수 포함: ${mustInclude.join(', ')}` : ''}
-【프로필 정보】
-◆ 현직: AI 연구 엔지니어, 세이베리 게임즈 (2025.5~현재)
-◆ 학력: 
-  - 박사: KAIST 전기및전자공학부 (2013-2017)
-  - 석사: KAIST 수리과학과 (2011-2013)
-  - 학사: KAIST 수리과학과 (2006-2011, 조기졸업)
-◆ 경력: KAIST 박사후 연구원 (2017.8-2025.4)
-◆ 성과: 세종과학펠로우십 (2022), 국제논문 25편, 초청세미나 13회
-◆ 연락: chaos@sayberrygames.com
+최신 기본 정보:
+- 이름: 박상돈 (Sangdon Park)
+- 소속: 대전대학교 SW융합학부 컴퓨터공학과 조교수 (2026-03-01~)
+- 연구 키워드: AI x Games Systems, Trustworthy AI, Optimization
+- 이메일: ${preferredContactEmail}
+- Google Scholar: https://scholar.google.com/citations?user=JZFDtsgAAAAJ
 
 이전 대화:
 ${recent || '없음'}
 
-현재 질문: ${message}
+현재 질문:
+${message}
 
 검색 결과:
 ${searchResults && searchResults.length ? searchResults.join('\n') : '없음'}
 
-📌 답변 생성 규칙 (최우선):
-1. "${message}"에 "맞"이 있으면 → "네, "로 시작
-2. "${message}"에 "연락처/이메일/신청"이 있으면 → "chaos@sayberrygames.com" 포함
-3. "${message}"에 "얼마"가 있으면 → "시간당 50만원" 포함
-4. "${message}"에 "몇 번/횟수"가 있으면 → "13회" 포함
-5. "${message}"에 "몇 편"이 있으면 → "25편" 포함
-
-【절대 사실】
-◆ 세미나: 총 13회
-◆ 논문: 총 25편  
-◆ 가격: 시간당 50만원
-◆ 연락: chaos@sayberrygames.com
-
-【답변 템플릿 - 정확히 따를 것】
-
-▶ 가격 질문 (얼마/비용/가격/금액/price/how much):
-→ "시간당 50만원입니다. 보통 1-2시간 진행됩니다."
-
-▶ 세미나 횟수 (세미나 몇/횟수/번):
-→ "총 13회 진행했습니다."
-
-▶ 논문 개수 (논문 몇/개수/편):
-→ "국제저널 25편입니다."
-
-▶ 신청/연락처 (신청/연락/contact/email/어디로/어떻게):
-→ "chaos@sayberrygames.com으로 연락주세요."
-
-▶ 일반 문의 (AI 세미나에 대해/궁금/알려):
-→ "AI 기초부터 LLM까지 다룹니다. 시간당 50만원, 1-2시간 진행. 신청: chaos@sayberrygames.com"
-
-▶ 맞춤형 관련:
-→ "청중 수준과 관심사에 맞춰 내용을 조정합니다. 초급자는 기초부터, 연구자는 논문 기반 심화 내용까지 가능합니다."
-
-▶ 학력 질문 (졸업/학교/대학/어디서/학력):
-→ "KAIST에서 학사(수리과학, 2006-2011), 석사(수리과학, 2011-2013), 박사(전기및전자공학, 2013-2017)를 받았습니다."
-
-▶ 대학 날짜:
-- 고려대 → "7월입니다" (2025 붙이지 말것!)
-- 경상국립대 → "8월 25일입니다" (2025 붙이지 말것!)
-- KAIST → "2024년과 2025년에 진행했습니다"
-
-▶ 복합 질문 - 연결사 패턴 인식:
-🚨🚨🚨 "~고", "~랑", "~하고" = 두 가지 묻는 것! 둘 다 답변! 🚨🚨🚨
-
-복합 질문 처리 알고리즘:
-1. 연결사 감지: "고", "랑", "하고"
-2. 양쪽 요소 파악
-3. 각각에 대한 답변 준비
-4. 연결해서 답변
-
-예시 (반드시 따라야 함):
-"세미나 얼마고 몇 번?" 
-→ 분해: [세미나 얼마] + [몇 번]
-→ 답변: "시간당 50만원이고, 총 13회 진행했습니다."
-
-"얼마고 몇번?"
-→ 분해: [얼마] + [몇번]  
-→ 답변: "시간당 50만원이고, 총 13회 진행했습니다."
-
-"비용이랑 횟수?"
-→ 분해: [비용] + [횟수]
-→ 답변: "시간당 50만원이며, 총 13회입니다."
-
-틀린 예시 (절대 금지):
-"세미나 얼마고 몇 번?" → ❌ "총 13회 진행했습니다." (가격 누락)
-"얼마고 몇번?" → ❌ "시간당 50만원입니다." (횟수 누락)
-
-연결사 보이면 → 양쪽 모두 답변!
-
-▶ 짧은 질문 - 반드시 이 패턴들 인식!:
-- "얼마?" "비용은?" "가격?" → "시간당 50만원입니다."
-- "몇개?" "몇번?" → 문맥 보고 "25편" 또는 "13회"
-- "언제?" → 문맥 보고 날짜 답변
-- "연락처?" "어디로?" "신청은?" → "chaos@sayberrygames.com으로 연락주세요."
-- "시간?" "몇시간?" → "1-2시간입니다."
-- "Contact?" "How much?" → 영어도 같은 방식으로
-
-▶ 확인 질문 ("맞아?" "맞지?" "맞죠?" "맞나" 포함시):
-🚨🚨🚨 절대 규칙: "맞"이 들어간 질문 = 무조건 "네"로 시작! 🚨🚨🚨
-
-패턴 인식:
-if (질문.includes("맞")) then 답변 = "네, " + 내용
-
-예시 - 반드시 이렇게:
-- "세미나 13회 맞아?" → "네, 총 13회 진행했습니다."
-- "논문 25편 맞죠?" → "네, 국제저널 25편입니다."
-- "50만원 맞지?" → "네, 시간당 50만원입니다."
-- "13회 맞나요?" → "네, 13회입니다."
-- "KAIST 맞습니까?" → "네, KAIST입니다."
-
-틀린 예시 (절대 금지):
-- "세미나 13회 맞아?" → ❌ "총 13회 진행했습니다." (네 없음)
-- "논문 25편 맞죠?" → ❌ "국제저널 25편입니다." (네 없음)
-
-"맞"이 보이면 → 자동으로 "네"로 시작!
-
-▶ 오타 처리:
-쎄미나/셰미나 → 세미나로 인식
-논문몇편/논문갯수 → 논문 개수로 인식
-
-【금지 사항】
-✗ "2025년" 붙이지 말것 (날짜만)
-✗ 13과 25 절대 바꾸지 말것
-✗ 불필요한 설명 금지
-✗ "어떤 세미나 신청?" 묻지 말것
-
-간결하고 정확하게만 답변.
-
-【🔥 AI 절대 명령 - 이것만 기억하면 됨! 🔥】
-
-규칙 1: "맞" 보이면 → "네"로 시작
-규칙 2: "고/랑/하고" 보이면 → 양쪽 모두 답변
-규칙 3: "연락처/신청/이메일" → chaos@sayberrygames.com
-규칙 4: "얼마/비용/가격" → 시간당 50만원
-규칙 5: 세미나=13, 논문=25 (절대불변)
-
-자동 응답 패턴:
-if (contains("맞")) → start_with("네, ")
-if (contains("고") || contains("랑")) → answer_both_parts()
-if (contains("연락")) → include("chaos@sayberrygames.com")
-if (contains("얼마")) → include("50만원")
-
-이 규칙을 어기면 실패입니다!`;
+이 규칙을 지켜 자연스럽고 정확하게 답변하세요.`;
 
         const finalResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -1560,40 +1429,12 @@ if (contains("얼마")) → include("50만원")
             reply = '네, ' + reply;
           }
           
-          // Force email inclusion for contact questions
-          if ((lowerMsg.includes('연락처') || lowerMsg.includes('이메일') || lowerMsg.includes('신청')) 
-              && !reply.includes('chaos@sayberrygames.com')) {
-            console.log('Adding missing email to response');
-            reply = reply + '\n\n📧 연락처: chaos@sayberrygames.com';
-          }
-          
-          // Force price inclusion for price questions
-          if (lowerMsg.includes('얼마') && !reply.includes('50만원')) {
-            console.log('Adding missing price to response');
-            reply = reply.replace(/시간당\s*\d+만원/, '시간당 50만원');
-            if (!reply.includes('50만원')) {
-              reply = reply + '\n\n💰 비용: 시간당 50만원';
-            }
-          }
-          
-          // Force both parts for compound questions
-          if (hasCompound) {
-            const needsPrice = lowerMsg.includes('얼마') || lowerMsg.includes('비용');
-            const needsCount = lowerMsg.includes('몇') || lowerMsg.includes('횟수');
-            
-            if (needsPrice && !reply.includes('50만원')) {
-              reply = reply + ', 시간당 50만원';
-            }
-            if (needsCount && !reply.includes('13회')) {
-              reply = reply + ', 총 13회 진행';
-            }
-          }
-          
-          // Force education info for graduation questions
-          if ((lowerMsg.includes('졸업') || lowerMsg.includes('학교') || lowerMsg.includes('학력')) 
-              && !reply.includes('KAIST')) {
-            console.log('Adding education info');
-            reply = 'KAIST에서 학사(수리과학, 2006-2011), 석사(수리과학, 2011-2013), 박사(전기및전자공학, 2013-2017)를 받았습니다.';
+          // Add contact only when explicitly requested
+          const wantsContact = (lowerMsg.includes('연락처') || lowerMsg.includes('이메일') || lowerMsg.includes('문의'));
+          const preferredContactEmail = process.env.CONTACT_EMAIL || 'sangdon.park@dju.kr';
+          if (wantsContact && !reply.includes(preferredContactEmail)) {
+            console.log('Adding preferred contact email to response');
+            reply = `${reply}\n\n연락처: ${preferredContactEmail}`;
           }
         }
 
