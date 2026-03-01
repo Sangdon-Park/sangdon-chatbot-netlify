@@ -15,6 +15,8 @@ const EMBEDDING_MODEL = 'text-embedding-004';
 const MAX_HISTORY = 10;
 const MAX_RESULTS = 5;
 const MAX_RETRIEVED = 6;
+const COURSE_GRADING_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const COURSE_GRADING_CACHE = new Map();
 
 function tr(lang, ko, en) {
   return lang === 'ko' ? ko : en;
@@ -125,6 +127,130 @@ function findCourseInMessage(text = '') {
 
 function safeHistory(history = []) {
   return Array.isArray(history) ? history.slice(-MAX_HISTORY) : [];
+}
+
+function decodeEntities(text = '') {
+  return String(text)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;/g, '\'')
+    .replace(/&quot;/g, '"');
+}
+
+function stripHtml(raw = '') {
+  return decodeEntities(
+    String(raw)
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractGradingSummaryFromHtml(html = '') {
+  const tablePattern = /<table[^>]*class=["'][^"']*course-table[^"']*["'][^>]*>[\s\S]*?<\/table>/gi;
+  const tables = String(html).match(tablePattern) || [];
+
+  for (const table of tables) {
+    if (!/(평가 항목|배점|비율|grading|evaluation|weight|score)/i.test(table)) {
+      continue;
+    }
+
+    const rows = table.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    const normalizedRows = [];
+
+    for (const row of rows) {
+      const cells = [];
+      row.replace(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi, (_, cell) => {
+        cells.push(stripHtml(cell));
+        return '';
+      });
+
+      if (cells.length < 2) continue;
+      const item = cells[0];
+      const weight = cells[1];
+      if (!item || !weight) continue;
+
+      const isHeaderRow =
+        /^(평가 항목|항목|item|category)$/i.test(item) ||
+        /^(배점|비율|weight|score)$/i.test(weight) ||
+        (/(평가 항목|배점|비율|기준|상태|status)/i.test(item) && /(배점|비율|점수|weight|score|status)/i.test(weight));
+
+      if (isHeaderRow) continue;
+      if (!/(중간|기말|퀴즈|과제|출석|프로젝트|시험|midterm|final|quiz|assignment|attendance|project|exam|deliverable|presentation|team)/i.test(item)) {
+        continue;
+      }
+
+      normalizedRows.push({ item, weight });
+    }
+
+    if (normalizedRows.length > 0) {
+      return normalizedRows
+        .slice(0, 8)
+        .map((row) => `${row.item} ${row.weight}`)
+        .join(' · ');
+    }
+  }
+
+  return null;
+}
+
+async function fetchCourseGradingSummary(course, lang = 'ko') {
+  if (!course) return null;
+
+  const cacheKey = `${course.code}:${lang}`;
+  const cached = COURSE_GRADING_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.updatedAt < COURSE_GRADING_CACHE_TTL_MS) {
+    return cached;
+  }
+
+  const urls = lang === 'ko'
+    ? [course.pageKo, course.pageEn]
+    : [course.pageEn || course.pageKo, course.pageKo];
+
+  let summary = null;
+  let sourceUrl = null;
+
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'SangdonChatbot/1.0'
+        }
+      });
+      if (!response.ok) continue;
+
+      const html = await response.text();
+      const parsed = extractGradingSummaryFromHtml(html);
+      if (parsed) {
+        summary = parsed;
+        sourceUrl = url;
+        break;
+      }
+    } catch (error) {
+      console.error(`course grading fetch error (${url}):`, error?.message || error);
+    }
+  }
+
+  if (!summary) {
+    summary = lang === 'ko'
+      ? (course.gradingSummaryKo || course.gradingSummaryEn || '')
+      : (course.gradingSummaryEn || course.gradingSummaryKo || '');
+    sourceUrl = lang === 'ko'
+      ? (course.pageKo || course.pageEn)
+      : (course.pageEn || course.pageKo);
+  }
+
+  const value = {
+    summary,
+    sourceUrl,
+    updatedAt: Date.now()
+  };
+  COURSE_GRADING_CACHE.set(cacheKey, value);
+  return value;
 }
 
 function classifyStep1(message, lang) {
@@ -394,7 +520,7 @@ function coauthorTop() {
   return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
 }
 
-function deterministic(message, lang, history = []) {
+async function deterministic(message, lang, history = []) {
   const msg = String(message || '');
   const timeline = careerTimeline();
   const timelineDocs = timeline.map((item, idx) => ({
@@ -411,23 +537,26 @@ function deterministic(message, lang, history = []) {
     };
   }
 
-  if (isCourseIntent(msg) && isGradingIntent(msg)) {
+  if (isGradingIntent(msg)) {
     const historyText = (history || []).map((h) => h?.content || '').join(' ');
     const targetCourse = findCourseInMessage(msg) || findCourseInMessage(historyText);
 
     if (targetCourse) {
-      const koSummary = targetCourse.gradingSummaryKo || '해당 과목의 배점 정보는 과목 페이지를 확인해 주세요.';
-      const enSummary = targetCourse.gradingSummaryEn || 'Please check the course page for grading details.';
+      const grading = await fetchCourseGradingSummary(targetCourse, lang);
+      const koSummary = grading?.summary || targetCourse.gradingSummaryKo || '해당 과목의 배점 정보는 과목 페이지를 확인해 주세요.';
+      const enSummary = grading?.summary || targetCourse.gradingSummaryEn || 'Please check the course page for grading details.';
+      const pageUrl = grading?.sourceUrl || targetCourse.pageKo || targetCourse.pageEn;
+
       return {
         reply: tr(
           lang,
-          `${targetCourse.titleKo} 평가 배점은 ${koSummary} 입니다. 과목 페이지: ${targetCourse.pageKo}`,
-          `Grading for ${targetCourse.titleEn}: ${enSummary}. Course page: ${targetCourse.pageEn || targetCourse.pageKo}`
+          `${targetCourse.titleKo} 평가 배점은 ${koSummary} 입니다. 과목 페이지: ${pageUrl}`,
+          `Grading for ${targetCourse.titleEn}: ${enSummary}. Course page: ${pageUrl}`
         ),
         docs: [{
           type: 'course',
           title: `${targetCourse.titleKo} (${targetCourse.titleEn})`,
-          url: targetCourse.pageKo,
+          url: pageUrl,
           score: 1
         }]
       };
@@ -725,7 +854,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const det = deterministic(message, lang, history);
+    const det = await deterministic(message, lang, history);
     if (det) {
       const payload = buildSearchPayload(det.docs || []);
       await logToSupabase(event, {
