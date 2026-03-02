@@ -1,6 +1,6 @@
 // Auto-synced knowledge base for Sangdon Park homepage chatbot
 // Generated from homepage pages and publication scripts
-// Generated at 2026-03-01T18:34:09.696Z from https://sangdon-park.github.io
+// Generated at 2026-03-02T18:35:47.646Z from https://sangdon-park.github.io
 
 const SITE_PROFILE = {
   "nameKo": "박상돈",
@@ -25,7 +25,7 @@ const SITE_PROFILE = {
   "educationTimeline": [
     {
       "degree": "Ph.D.",
-      "graduation": "2017",
+      "graduation": "2017.08",
       "school": "KAIST",
       "departmentKo": "전기및전자공학부",
       "departmentEn": "School of Electrical Engineering, KAIST",
@@ -34,7 +34,7 @@ const SITE_PROFILE = {
     },
     {
       "degree": "M.S.",
-      "graduation": "2013",
+      "graduation": "2013.02",
       "school": "KAIST",
       "departmentKo": "수리과학과",
       "departmentEn": "Department of Mathematical Sciences, KAIST",
@@ -43,7 +43,7 @@ const SITE_PROFILE = {
     },
     {
       "degree": "B.S.",
-      "graduation": "2011",
+      "graduation": "2011.02",
       "school": "KAIST",
       "departmentKo": "수리과학과",
       "departmentEn": "Department of Mathematical Sciences, KAIST",
@@ -59,6 +59,10 @@ const SITE_PROFILE = {
     {
       "period": "2025-05 to 2026-02-28",
       "role": "세이베리게임즈 게임 개발"
+    },
+    {
+      "period": "2017.09 - 2025.04",
+      "role": "KAIST 정보전자연구소 연수연구원"
     },
     {
       "period": "2017-08 to 2025-04",
@@ -88,8 +92,8 @@ const COURSES_2026_SPRING = [
     "titleEn": "Database Systems",
     "pageKo": "https://sangdon-park.github.io/courses/database-systems-2026-spring.html",
     "pageEn": "https://sangdon-park.github.io/courses/database-systems-2026-spring-en.html",
-    "gradingSummaryKo": "퀴즈 및 과제 30% · 중간고사 30% · 기말고사 30% · 출석 10%",
-    "gradingSummaryEn": "Quizzes & Homework 30% · Midterm 30% · Final 30% · Attendance 10%"
+    "gradingSummaryKo": "퀴즈 및 과제 10% · 중간고사 40% · 기말고사 40% · 출석 및 핵심역량평가 10%",
+    "gradingSummaryEn": "Quizzes & Homework 10% · Midterm 40% · Final 40% · Attendance & Core Competency 10%"
   },
   {
     "code": "AI",
