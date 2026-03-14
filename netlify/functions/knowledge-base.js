@@ -1,6 +1,6 @@
 // Auto-synced knowledge base for Sangdon Park homepage chatbot
 // Generated from homepage pages and publication scripts
-// Generated at 2026-03-13T18:35:28.982Z from https://sangdon-park.github.io
+// Generated at 2026-03-14T18:34:38.806Z from https://sangdon-park.github.io
 
 const SITE_PROFILE = {
   "nameKo": "박상돈",
@@ -12,7 +12,7 @@ const SITE_PROFILE = {
   "affiliationKo": "대전대학교 SW융합학부 컴퓨터공학과",
   "affiliationEn": "Department of Computer Engineering, School of SW Convergence, Daejeon University",
   "appointmentDate": "2026-03-01",
-  "email": "sangdonpark@dju.ac.kr",
+  "email": "sangdonpark@dju.kr",
   "scholarId": "JZFDtsgAAAAJ",
   "scholarUrl": "https://scholar.google.com/citations?user=JZFDtsgAAAAJ",
   "githubUrl": "https://github.com/Sangdon-Park",
