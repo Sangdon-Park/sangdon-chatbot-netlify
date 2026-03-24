@@ -1,6 +1,6 @@
 // Auto-synced knowledge base for Sangdon Park homepage chatbot
 // Generated from homepage pages and publication scripts
-// Generated at 2026-03-23T18:36:42.824Z from https://sangdon-park.github.io
+// Generated at 2026-03-24T18:40:41.037Z from https://sangdon-park.github.io
 
 const SITE_PROFILE = {
   "nameKo": "박상돈",
